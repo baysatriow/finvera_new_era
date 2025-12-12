@@ -4,41 +4,50 @@
 
 @section('content')
 <style>
-    /* Custom Date Input & Buttons */
+    /* Custom Date Input */
     .form-control-date {
         border-radius: 8px;
         padding: 10px 15px;
         border: 1px solid #dee2e6;
         height: 48px;
     }
-    .btn-filter-solid {
+
+    /* Button Styles - Height Match Input */
+    .btn-filter {
+        height: 48px;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: none;
+    }
+
+    .btn-show {
         background-color: #3A6D48;
         color: white;
-        border: none;
-        height: 48px;
-        font-weight: 600;
-        transition: all 0.3s;
     }
-    .btn-filter-solid:hover {
+    .btn-show:hover {
         background-color: #2c5236;
         color: white;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(58, 109, 72, 0.2);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(58, 109, 72, 0.2);
     }
-    .btn-excel-solid {
+
+    .btn-download {
         background-color: #198754;
         color: white;
-        border: none;
-        height: 48px;
-        font-weight: 600;
-        transition: all 0.3s;
     }
-    .btn-excel-solid:hover {
+    .btn-download:hover {
         background-color: #146c43;
         color: white;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(25, 135, 84, 0.2);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(25, 135, 84, 0.2);
     }
+
+    /* Card Stats Modern */
     .stat-card-modern {
         border: none;
         border-radius: 16px;
@@ -50,7 +59,7 @@
     .stat-card-modern:hover { transform: translateY(-2px); }
 </style>
 
-<!-- FITUR: FILTER PERIODE -->
+<!-- CARD FILTER -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card border-0 shadow-sm rounded-4">
@@ -59,7 +68,6 @@
             </div>
             <div class="card-body px-4 pb-4 pt-0">
                 <form action="{{ route('admin.reports.index') }}" method="GET" class="row align-items-end g-3">
-                    <!-- Sub: Input Tanggal -->
                     <div class="col-md-4">
                         <label class="form-label fw-bold text-muted small text-uppercase">Dari Tanggal</label>
                         <input type="date" name="start_date" class="form-control form-control-date" value="{{ $startDate }}">
@@ -68,15 +76,16 @@
                         <label class="form-label fw-bold text-muted small text-uppercase">Sampai Tanggal</label>
                         <input type="date" name="end_date" class="form-control form-control-date" value="{{ $endDate }}">
                     </div>
-
-                    <!-- Sub: Tombol Aksi -->
                     <div class="col-md-4">
                         <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-filter-solid w-100 rounded-3">
-                                <i class="fas fa-search me-2"></i> Tampilkan
+                            <!-- Tombol Tampilkan -->
+                            <button type="submit" class="btn btn-filter btn-show w-100">
+                                <i class="fas fa-search"></i> <span>Tampilkan Data</span>
                             </button>
-                            <a href="{{ route('admin.reports.export', ['start_date' => $startDate, 'end_date' => $endDate]) }}" class="btn btn-excel-solid w-100 rounded-3">
-                                <i class="fas fa-file-excel me-2"></i> Unduh CSV
+
+                            <!-- Tombol Download -->
+                            <a href="{{ route('admin.reports.export', ['start_date' => $startDate, 'end_date' => $endDate]) }}" class="btn btn-filter btn-download w-100 text-decoration-none">
+                                <i class="fas fa-file-csv"></i> <span>Unduh CSV</span>
                             </a>
                         </div>
                     </div>
@@ -86,10 +95,8 @@
     </div>
 </div>
 
-<!-- FITUR: KARTU STATISTIK -->
+<!-- KARTU STATISTIK -->
 <div class="row g-4 mb-4">
-
-    <!-- Sub: Total Pencairan -->
     <div class="col-md-4">
         <div class="stat-card-modern p-4 d-flex align-items-center justify-content-between">
             <div>
@@ -102,8 +109,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Sub: Total Pembayaran -->
     <div class="col-md-4">
         <div class="stat-card-modern p-4 d-flex align-items-center justify-content-between">
             <div>
@@ -116,8 +121,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Sub: Pendapatan Admin -->
     <div class="col-md-4">
         <div class="stat-card-modern p-4 d-flex align-items-center justify-content-between">
             <div>
@@ -132,7 +135,7 @@
     </div>
 </div>
 
-<!-- FITUR: GRAFIK ARUS KAS -->
+<!-- GRAFIK ARUS KAS -->
 <div class="row">
     <div class="col-12">
         <div class="card border-0 shadow-sm rounded-4">
@@ -151,13 +154,12 @@
     </div>
 </div>
 
-<!-- LOGIC: CHART.JS -->
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('cashflowChart').getContext('2d');
 
-        // Data passing dari Controller
         const labels = @json($chartData['labels']);
         const disbursementData = @json($chartData['disbursement']);
         const repaymentData = @json($chartData['repayment']);
