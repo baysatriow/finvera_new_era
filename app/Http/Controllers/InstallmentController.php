@@ -11,66 +11,79 @@ use Illuminate\Support\Facades\DB;
 class InstallmentController extends Controller
 {
     /* ============================================================
-     * PROSES PEMBAYARAN CICILAN
+     * INDEX — LIST CICILAN USER (AKTIF & RIWAYAT)
+     * ============================================================ */
+    public function index()
+    {
+        $installments = Installment::whereHas('loan', function ($query) {
+                $query->where('user_id', Auth::id());
+            })
+            ->with(['loan'])
+            ->orderByRaw("FIELD(status, 'late', 'pending', 'paid')")
+            ->orderBy('due_date', 'asc')
+            ->get();
+
+        return view('installments.index', compact('installments'));
+    }
+
+    /* ============================================================
+     * PAY — PROSES PEMBAYARAN CICILAN
      * ============================================================ */
     public function pay(Request $request, $id)
     {
         $installment = Installment::with('loan')->findOrFail($id);
 
-        /* ------------------------------------------------------------
-         * 1. VALIDASI KEPEMILIKAN
-         * ------------------------------------------------------------ */
+        // Validasi kepemilikan
         if ($installment->loan->user_id !== Auth::id()) {
             abort(403);
         }
 
-        /* ------------------------------------------------------------
-         * 2. CICILAN SUDAH LUNAS?
-         * ------------------------------------------------------------ */
+        // Jika sudah lunas
         if ($installment->status === 'paid') {
             return back()->with('info', 'Cicilan ini sudah lunas.');
         }
 
-        /* ------------------------------------------------------------
-         * 3. CEK CICILAN SEBELUMNYA (Harus bayar berurutan)
-         * ------------------------------------------------------------ */
-        $previousUnpaid = Installment::where('loan_id', $installment->loan_id)
+        // Harus bayar cicilan berurutan
+        $hasPreviousUnpaid = Installment::where('loan_id', $installment->loan_id)
             ->where('installment_number', '<', $installment->installment_number)
             ->where('status', '!=', 'paid')
             ->exists();
 
-        if ($previousUnpaid) {
+        if ($hasPreviousUnpaid) {
             return back()->with('error', 'Harap lunasi cicilan bulan sebelumnya terlebih dahulu.');
         }
 
-        /* ------------------------------------------------------------
-         * 4. PROSES TRANSAKSI PEMBAYARAN
-         * ------------------------------------------------------------ */
         DB::beginTransaction();
+
         try {
-            // A. Tandai cicilan sebagai lunas
+            /* ---------------------------
+             * 1. Tandai cicilan sebagai lunas
+             * --------------------------- */
             $installment->update([
-                'status' => 'paid',
-                'paid_at' => now(),
+                'status'     => 'paid',
+                'paid_at'    => now(),
                 'total_paid' => $installment->amount + $installment->tazir_amount,
             ]);
 
-            // B. Kurangi sisa hutang loan utama
+            /* ---------------------------
+             * 2. Kurangi sisa hutang pada loan
+             * --------------------------- */
             $loan = $installment->loan;
             $loan->remaining_balance -= $installment->amount;
 
-            // C. Jika hampir nol, anggap lunas total (toleransi < 100 rupiah)
+            // Jika sisa hutang kecil, dianggap lunas
             if ($loan->remaining_balance <= 100) {
                 $loan->remaining_balance = 0;
                 $loan->status = 'paid';
             }
 
             $loan->save();
+
             DB::commit();
 
-            /* ------------------------------------------------------------
-             * 5. RESPONSE SUKSES
-             * ------------------------------------------------------------ */
+            /* ---------------------------
+             * 3. Response UI
+             * --------------------------- */
             if ($loan->status === 'paid') {
                 return back()->with('success', 'Alhamdulillah! Seluruh pinjaman Anda telah lunas.');
             }
@@ -81,7 +94,7 @@ class InstallmentController extends Controller
             );
 
         } catch (\Exception $e) {
-            DB::rollback();
+            DB::rollBack();
             return back()->with('error', 'Gagal memproses pembayaran: ' . $e->getMessage());
         }
     }

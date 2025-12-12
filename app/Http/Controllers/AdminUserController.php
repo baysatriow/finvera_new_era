@@ -11,11 +11,10 @@ use Illuminate\Validation\Rule;
 class AdminUserController extends Controller
 {
     /* ============================================================
-     * LIST ADMIN
+     * INDEX — LIST ADMIN (KHUSUS MASTER ADMIN)
      * ============================================================ */
     public function index()
     {
-        // Hanya Admin Master yang boleh membuka halaman ini
         if (Auth::user()->admin_level !== 'master') {
             abort(403, 'Akses Ditolak. Hanya Admin Utama.');
         }
@@ -28,7 +27,7 @@ class AdminUserController extends Controller
     }
 
     /* ============================================================
-     * FORM TAMBAH ADMIN BARU
+     * CREATE — FORM TAMBAH ADMIN
      * ============================================================ */
     public function create()
     {
@@ -36,17 +35,19 @@ class AdminUserController extends Controller
     }
 
     /* ============================================================
-     * SIMPAN ADMIN BARU
+     * STORE — SIMPAN ADMIN BARU
      * ============================================================ */
     public function store(Request $request)
     {
         $request->validate([
             'name'        => 'required|string|max:255',
-            'email'       => 'required|email|max:255|unique:users',
-            'username'    => 'required|string|min:4|max:20|alpha_dash|unique:users',
-            'password'    => 'required|string|min:8',
             'admin_level' => 'required|in:master,staff',
-            'phone'       => 'required|numeric',
+            'username'    => 'required|string|min:4|max:20|alpha_dash|unique:users,username',
+            'email'       => 'required|email|max:255|unique:users,email',
+            'phone'       => 'required|numeric|unique:users,phone',
+            'password'    => 'required|string|min:8',
+        ], [
+            'username.alpha_dash' => 'Username hanya boleh berisi huruf, angka, strip, dan underscore.',
         ]);
 
         User::create([
@@ -57,7 +58,7 @@ class AdminUserController extends Controller
             'phone'       => $request->phone,
             'role'        => 'admin',
             'admin_level' => $request->admin_level,
-            'kyc_status'  => 'verified',  // Admin otomatis verified
+            'kyc_status'  => 'verified',
         ]);
 
         return redirect()
@@ -66,16 +67,17 @@ class AdminUserController extends Controller
     }
 
     /* ============================================================
-     * FORM EDIT ADMIN
+     * EDIT — FORM EDIT ADMIN
      * ============================================================ */
     public function edit($id)
     {
         $user = User::findOrFail($id);
+
         return view('admin.users.edit', compact('user'));
     }
 
     /* ============================================================
-     * UPDATE ADMIN
+     * UPDATE — UPDATE DATA ADMIN (IGNORE ID SENDIRI)
      * ============================================================ */
     public function update(Request $request, $id)
     {
@@ -83,20 +85,29 @@ class AdminUserController extends Controller
 
         $request->validate([
             'name'        => 'required|string|max:255',
-            'email'       => ['required', 'email', Rule::unique('users')->ignore($user->id)],
             'admin_level' => 'required|in:master,staff',
-            'phone'       => 'required|numeric',
-            'password'    => 'nullable|string|min:8',
+            'email'       => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users')->ignore($user->id),
+            ],
+            'phone' => [
+                'required',
+                'numeric',
+                Rule::unique('users')->ignore($user->id),
+            ],
+            'password' => 'nullable|string|min:8',
         ]);
 
         $data = [
             'name'        => $request->name,
             'email'       => $request->email,
+            'username'    => $request->username,
             'phone'       => $request->phone,
             'admin_level' => $request->admin_level,
         ];
 
-        // Update password jika diisi
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
         }
@@ -109,13 +120,12 @@ class AdminUserController extends Controller
     }
 
     /* ============================================================
-     * HAPUS ADMIN
+     * DESTROY — HAPUS ADMIN
      * ============================================================ */
     public function destroy($id)
     {
         $user = User::findOrFail($id);
 
-        // Cegah menghapus diri sendiri
         if ($user->id === Auth::id()) {
             return back()->with('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
         }

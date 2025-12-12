@@ -40,6 +40,21 @@
         border-radius: 8px;
     }
     textarea.form-control { height: auto; }
+
+    .btn-finvera {
+        background-color: #3A6D48;
+        color: white;
+        border: none;
+        font-weight: 600;
+        padding: 10px 24px;
+        transition: all 0.3s;
+    }
+    .btn-finvera:hover {
+        background-color: #2c5236;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(58, 109, 72, 0.3);
+    }
 </style>
 @endpush
 
@@ -47,8 +62,7 @@
     <!-- KOLOM KIRI: INFO SINGKAT -->
     <div class="col-md-4 mb-4">
         <div class="card border-0 shadow-sm rounded-4 text-center p-4 h-100">
-            <!-- Avatar -->
-            <div class="profile-avatar {{ Auth::user()->role == 'admin' ? 'bg-danger text-danger bg-opacity-10' : 'bg-finvera text-white' }} rounded-circle shadow-sm">
+            <div class="profile-avatar {{ Auth::user()->role == 'admin' ? 'bg-danger text-danger bg-opacity-10' : 'bg-success text-success bg-opacity-10' }} rounded-circle shadow-sm">
                 {{ substr(Auth::user()->name, 0, 1) }}
             </div>
 
@@ -73,8 +87,6 @@
 
             <hr class="border-light mb-4">
 
-            <!-- Statistik Kredit (HANYA UNTUK BORROWER) -->
-            @if(Auth::user()->role == 'borrower')
             <div class="text-start px-2">
                 <label class="small text-muted fw-bold text-uppercase mb-2">Statistik Kredit</label>
                 <div class="d-flex justify-content-between align-items-center bg-light p-3 rounded-3">
@@ -92,7 +104,6 @@
                     </div>
                 </div>
             </div>
-            @endif
         </div>
     </div>
 
@@ -102,7 +113,7 @@
             <div class="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
                 <ul class="nav nav-tabs card-header-tabs" id="profileTabs" role="tablist">
                     <li class="nav-item">
-                        <button class="nav-link active fw-bold text-finvera" id="edit-tab" data-bs-toggle="tab" data-bs-target="#edit" type="button">
+                        <button class="nav-link active fw-bold text-success" id="edit-tab" data-bs-toggle="tab" data-bs-target="#edit" type="button">
                             <i class="fas fa-user-edit me-2"></i>Edit Profil
                         </button>
                     </li>
@@ -133,7 +144,6 @@
                                 <div class="col-md-6">
                                     <label class="form-label small fw-bold text-muted">Email (Terkunci)</label>
                                     <input type="email" class="form-control bg-light" value="{{ $user->email }}" disabled readonly>
-                                    <!-- Email tidak dikirim -->
                                 </div>
                             </div>
 
@@ -168,8 +178,8 @@
                             <div class="mb-4">
                                 <label class="form-label small fw-bold text-muted">Pendapatan Bulanan</label>
                                 <div class="input-group">
-                                    <span class="input-group-text bg-light">Rp</span>
-                                    <input type="text" id="monthly_income_display" class="form-control fw-bold text-finvera" required>
+                                    <span class="input-group-text bg-light border-end-0 text-muted">Rp</span>
+                                    <input type="text" id="monthly_income_display" class="form-control fw-bold text-dark border-start-0" required>
                                     <input type="hidden" name="monthly_income" id="monthly_income" value="{{ old('monthly_income', $user->monthly_income) }}">
                                 </div>
                             </div>
@@ -184,11 +194,9 @@
                             <div class="row mb-3">
                                 <div class="col-md-6 mb-3 mb-md-0">
                                     <label class="form-label small fw-bold text-muted">Provinsi</label>
-                                    <!-- Name diubah jadi province_select agar tidak terkirim sebagai 'province' -->
                                     <select name="province_select" id="province" class="form-select" required>
                                         <option value="{{ $user->province }}" selected>{{ $user->province }}</option>
                                     </select>
-                                    <!-- Input Hidden 'province' ini yang akan dikirim ke DB dengan Nama Wilayah -->
                                     <input type="hidden" name="province" id="province_hidden" value="{{ $user->province }}">
                                 </div>
                                 <div class="col-md-6">
@@ -285,7 +293,6 @@ $(document).ready(function() {
         width: '100%',
     });
 
-    // Populate Jobs & Income Formatter (Hanya jika elemen ada/User=Borrower)
     if($('#jobSelect').length) {
         const jobs = [
             "PNS/ASN", "TNI/Polri", "Pegawai BUMN", "Karyawan Swasta", "Wiraswasta/Pengusaha",
@@ -305,10 +312,10 @@ $(document).ready(function() {
         const $hidden = $('#monthly_income');
 
         function formatNumber(num) {
-            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
         }
         function unformatNumber(str) {
-            return str.replace(/,/g, '');
+            return str.replace(/\./g, '');
         }
 
         if ($hidden.val()) {
@@ -329,21 +336,15 @@ $(document).ready(function() {
     // Load Provinces
     $.get(`${apiBaseUrl}/provinces.json`, function(data) {
         let $prov = $('#province');
-        // Loop data provinsi dari API
         data.forEach(p => {
-            // Cek jika nama provinsi di DB sama dengan API
-            // Jika sama, kita ubah value option yang sudah ada (dari HTML) menjadi ID agar API child bisa jalan
             if (p.name === "{{ $user->province }}") {
-                // Update value option yang 'selected' saat ini menjadi ID API
                 $prov.find('option:selected').val(p.id);
             } else {
-                // Jika beda, tambahkan sebagai opsi baru
                 $prov.append(new Option(p.name, p.id, false, false));
             }
         });
     });
 
-    // Helper untuk update input hidden dengan NAMA Wilayah (Text)
     function updateHiddenInput(selector, hiddenSelector) {
         let text = $(selector).find('option:selected').text();
         $(hiddenSelector).val(text);
@@ -352,14 +353,12 @@ $(document).ready(function() {
     // PROVINCE CHANGE
     $('#province').on('change', function() {
         let id = $(this).val();
-        updateHiddenInput(this, '#province_hidden'); // Simpan NAMA ke hidden input
+        updateHiddenInput(this, '#province_hidden');
 
-        // Reset Child Selects
         $('#city').empty().append('<option value="">Pilih Kota</option>').trigger('change');
         $('#district').empty().append('<option value="">Pilih Kecamatan</option>').trigger('change');
         $('#village').empty().append('<option value="">Pilih Desa</option>').trigger('change');
 
-        // Fetch Cities
         if(id && !isNaN(id)) {
             $.get(`${apiBaseUrl}/regencies/${id}.json`, function(data) {
                 data.forEach(d => $('#city').append(new Option(d.name, d.id)));
@@ -391,8 +390,6 @@ $(document).ready(function() {
 
         if(id && !isNaN(id)) {
             $.get(`${apiBaseUrl}/villages/${id}.json`, function(data) {
-                // Khusus Desa, value di option juga nama (untuk simplifikasi, atau id juga boleh asal konsisten)
-                // Disini kita pakai nama sebagai value dan text agar seragam
                 data.forEach(d => $('#village').append(new Option(d.name, d.name)));
             });
         }

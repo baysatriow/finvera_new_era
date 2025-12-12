@@ -4,7 +4,7 @@
 
 @section('content')
 <style>
-    /* Styling Pilihan Nominal (Chips) */
+    /* --- Styling Chips --- */
     .nominal-chip {
         cursor: pointer;
         transition: all 0.2s;
@@ -12,9 +12,9 @@
         background-color: white;
         color: #555;
         font-weight: 500;
-        padding: 10px 20px; /* Lebih besar */
+        padding: 8px 16px;
         border-radius: 50px;
-        font-size: 0.95rem;
+        font-size: 0.9rem;
     }
     .nominal-chip:hover {
         background-color: #f8f9fa;
@@ -28,10 +28,39 @@
         box-shadow: 0 4px 10px rgba(58, 109, 72, 0.15);
     }
 
-    /* Styling Upload Preview */
+    /* --- Styling Slider Modern --- */
+    input[type=range] {
+        -webkit-appearance: none;
+        width: 100%;
+        background: transparent;
+        margin: 10px 0;
+    }
+    input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        height: 20px;
+        width: 20px;
+        border-radius: 50%;
+        background: #3A6D48;
+        border: 2px solid #fff;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        cursor: pointer;
+        margin-top: -8px;
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 6px;
+        cursor: pointer;
+        background: #d1e7dd;
+        border-radius: 3px;
+    }
+    input[type=range]:focus {
+        outline: none;
+    }
+
+    /* --- Upload Preview (Updated) --- */
     .img-preview-container {
         width: 100%;
-        height: 240px; /* Lebih tinggi */
+        height: 240px;
         background-color: #fcfcfc;
         border: 2px dashed #dee2e6;
         border-radius: 16px;
@@ -48,11 +77,29 @@
         border-color: #3A6D48;
         background-color: #f4fcf6;
     }
+    .img-preview-container.has-image {
+        border-style: solid;
+        border-color: #3A6D48;
+        background-color: #212529; /* Background gelap agar foto jelas */
+    }
+
+    /* Image Style: Fit Contain & Center */
     .img-preview {
         width: 100%;
         height: 100%;
-        object-fit: cover;
+        object-fit: contain;
+        object-position: center;
         display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        background-color: #333;
+    }
+
+    .upload-placeholder {
+        text-align: center;
+        width: 100%;
+        transition: opacity 0.2s;
     }
     .upload-icon {
         color: #adb5bd;
@@ -60,14 +107,38 @@
         margin-bottom: 15px;
     }
 
-    /* Styling Tabel Akad (Modal) */
+    /* Tombol Hapus Foto (X) */
+    .btn-remove-img {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(255, 255, 255, 0.9);
+        color: #dc3545;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: none; /* Hidden by default */
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        z-index: 10;
+        transition: transform 0.2s;
+    }
+    .btn-remove-img:hover {
+        transform: scale(1.1);
+        background: white;
+    }
+
+    /* --- Akad List --- */
     .akad-list-group {
         border: 1px solid #e9ecef;
         border-radius: 12px;
         overflow: hidden;
     }
     .akad-item {
-        padding: 20px 25px; /* Padding lebih lega (tidak gepeng) */
+        padding: 20px 25px;
         background-color: white;
         border-bottom: 1px solid #f0f0f0;
         display: flex;
@@ -82,27 +153,13 @@
     .akad-item:hover {
         background-color: #f8f9fa;
     }
-    .akad-content h6 {
-        font-size: 1rem;
-        font-weight: 700;
-        margin-bottom: 6px;
-        color: #2c3e50;
-    }
-    .akad-content p {
-        font-size: 0.9rem;
-        color: #6c757d;
-        margin-bottom: 0;
-        line-height: 1.6;
-    }
-
-    /* Checkbox Besar */
     .form-check-input.akad-check {
         margin-top: 5px;
         border: 2px solid #adb5bd;
+        width: 1.5em;
+        height: 1.5em;
+        flex-shrink: 0;
         cursor: pointer;
-        width: 1.8em; /* Ukuran checklist besar */
-        height: 1.8em;
-        flex-shrink: 0; /* Mencegah penyusutan */
     }
     .form-check-input.akad-check:checked {
         background-color: #3A6D48;
@@ -110,15 +167,14 @@
     }
 </style>
 
-<!-- Gunakan col-12 agar memenuhi ruang (tidak jauh dari sidebar) -->
 <div class="row">
     <div class="col-12">
 
         <div class="card border-0 shadow-sm rounded-4 mb-5">
-            <!-- Header Card Lebih Menonjol -->
+            <!-- Header Card -->
             <div class="card-header bg-white py-4 px-4 border-bottom">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="bg-success bg-opacity-10 text-success rounded-circle p-3">
+                    <div class="bg-success bg-opacity-10 text-success rounded-circle p-3 flex-shrink-0">
                         <i class="fas fa-hand-holding-usd fs-4"></i>
                     </div>
                     <div>
@@ -139,14 +195,21 @@
 
                             <!-- 1. NOMINAL PINJAMAN -->
                             <div class="mb-5">
-                                <label class="form-label fw-bold small text-muted text-uppercase mb-3">Nominal Pinjaman</label>
-                                <div class="input-group input-group-lg mb-3 shadow-sm">
+                                <label class="form-label fw-bold small text-muted text-uppercase mb-2">Nominal Pinjaman</label>
+
+                                <div class="input-group input-group-lg mb-2 shadow-sm">
                                     <span class="input-group-text bg-white border-end-0 fw-bold text-success ps-4">Rp</span>
+                                    <!-- Input Display (Format Ribuan) -->
                                     <input type="text" class="form-control border-start-0 fw-bold text-dark" id="amountDisplay" placeholder="0" style="font-size: 2rem; height: 60px;">
+                                    <!-- Input Hidden (Nilai Asli) -->
                                     <input type="hidden" name="amount" id="amountInput" value="1000000">
                                 </div>
 
-                                <div class="d-flex flex-wrap gap-2 mb-2">
+                                <!-- Slider Nominal -->
+                                <input type="range" class="form-range" min="1000000" max="20000000" step="100000" id="amountSlider" value="1000000">
+
+                                <!-- Template Chips -->
+                                <div class="d-flex flex-wrap gap-2 mt-3">
                                     <div class="nominal-chip active" data-val="1000000">1 Juta</div>
                                     <div class="nominal-chip" data-val="3000000">3 Juta</div>
                                     <div class="nominal-chip" data-val="5000000">5 Juta</div>
@@ -154,27 +217,39 @@
                                     <div class="nominal-chip" data-val="15000000">15 Juta</div>
                                     <div class="nominal-chip" data-val="20000000">20 Juta</div>
                                 </div>
+                                <div class="form-text text-muted small mt-2"><i class="fas fa-info-circle me-1"></i> Limit maksimal Anda: Rp 20.000.000</div>
                             </div>
 
                             <!-- 2. TENOR FLUID -->
-                            <div class="mb-5">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
                                     <label class="form-label fw-bold small text-muted text-uppercase mb-0">Jangka Waktu Pengembalian</label>
                                     <span class="badge bg-success fs-6 px-3 py-2 rounded-pill" id="tenorLabel">1 Bulan</span>
                                 </div>
-                                <input type="range" class="form-range custom-range" min="1" max="12" step="1" id="tenorRange" name="tenor" value="1" style="height: 10px;">
-                                <div class="d-flex justify-content-between small text-muted fw-bold mt-2">
+                                <input type="range" class="form-range" min="1" max="12" step="1" id="tenorRange" name="tenor" value="1">
+                                <div class="d-flex justify-content-between small text-muted fw-bold mt-1">
                                     <span>1 Bulan</span>
                                     <span id="maxTenorLabel">12 Bulan</span>
                                 </div>
                             </div>
 
+                            <hr class="my-4 border-light">
+
                             <!-- 3. TUJUAN & ASET -->
-                            <h6 class="fw-bold mb-4 pt-2 border-top"><i class="fas fa-edit me-2 mt-4"></i>Detail Pengajuan</h6>
+                            <div class="d-flex align-items-center gap-3 mb-4">
+                                <!-- Ikon diperbesar dan padding disesuaikan agar tidak gepeng -->
+                                <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px;">
+                                    <i class="fas fa-file-contract fs-4"></i>
+                                </div>
+                                <div>
+                                    <h5 class="fw-bold mb-0 text-dark">Detail & Jaminan</h5>
+                                    <p class="text-muted small mb-0">Informasi penggunaan dana dan agunan</p>
+                                </div>
+                            </div>
 
                             <div class="mb-4">
                                 <label class="form-label fw-bold small text-muted text-uppercase">Tujuan Peminjaman</label>
-                                <textarea name="purpose" class="form-control bg-light" rows="3" placeholder="Jelaskan secara rinci penggunaan dana (Misal: Pembelian stok barang dagangan berupa beras 50kg...)" required style="border: 1px solid #eee;"></textarea>
+                                <textarea name="purpose" class="form-control bg-light" rows="3" placeholder="Jelaskan secara rinci penggunaan dana (Misal: Tambahan modal usaha warung sembako...)" required style="border: 1px solid #eee;"></textarea>
                             </div>
 
                             <div class="row mb-4">
@@ -193,7 +268,9 @@
                                     <label class="form-label fw-bold small text-muted text-uppercase">Estimasi Nilai Aset</label>
                                     <div class="input-group input-group-lg">
                                         <span class="input-group-text bg-light fs-6">Rp</span>
-                                        <input type="number" name="asset_value" class="form-control fw-bold fs-6" placeholder="0" required>
+                                        <!-- Input Asset dengan Auto Format -->
+                                        <input type="text" class="form-control fw-bold fs-6" id="assetDisplay" placeholder="0" required>
+                                        <input type="hidden" name="asset_value" id="assetInput">
                                     </div>
                                 </div>
                             </div>
@@ -202,27 +279,33 @@
                             <div class="row">
                                 <div class="col-md-6 mb-4">
                                     <label class="form-label fw-bold small text-muted text-uppercase mb-2">Foto Dokumen Aset</label>
-                                    <div class="img-preview-container" onclick="document.getElementById('docInput').click()">
+                                    <div class="img-preview-container" id="container-doc" onclick="triggerUpload('docInput')">
                                         <div class="upload-placeholder text-center" id="docPlaceholder">
                                             <i class="fas fa-file-invoice upload-icon"></i>
                                             <div class="fw-bold text-dark">Upload Dokumen</div>
-                                            <div class="small text-muted mt-1">Klik untuk memilih file</div>
+                                            <div class="small text-muted mt-1">Format: JPG, PNG (Max 4MB)</div>
                                         </div>
                                         <img id="docPreview" class="img-preview">
+                                        <button type="button" class="btn-remove-img shadow-sm" id="remove-doc" onclick="removeImage(event, 'docInput', 'docPreview', 'docPlaceholder', 'remove-doc', 'container-doc')">
+                                            <i class="fas fa-times"></i>
+                                        </button>
                                     </div>
-                                    <input type="file" name="asset_document" id="docInput" class="d-none" accept="image/*" onchange="previewImage(this, 'docPreview', 'docPlaceholder')" required>
+                                    <input type="file" name="asset_document" id="docInput" class="d-none" accept="image/*" onchange="previewImage(this, 'docPreview', 'docPlaceholder', 'remove-doc', 'container-doc')" required>
                                 </div>
                                 <div class="col-md-6 mb-4">
                                     <label class="form-label fw-bold small text-muted text-uppercase mb-2">Selfie dengan Aset</label>
-                                    <div class="img-preview-container" onclick="document.getElementById('selfieInput').click()">
+                                    <div class="img-preview-container" id="container-selfie" onclick="triggerUpload('selfieInput')">
                                         <div class="upload-placeholder text-center" id="selfiePlaceholder">
                                             <i class="fas fa-camera-retro upload-icon"></i>
                                             <div class="fw-bold text-dark">Ambil Foto Selfie</div>
                                             <div class="small text-muted mt-1">Wajah & Aset harus terlihat</div>
                                         </div>
                                         <img id="selfiePreview" class="img-preview">
+                                        <button type="button" class="btn-remove-img shadow-sm" id="remove-selfie" onclick="removeImage(event, 'selfieInput', 'selfiePreview', 'selfiePlaceholder', 'remove-selfie', 'container-selfie')">
+                                            <i class="fas fa-times"></i>
+                                        </button>
                                     </div>
-                                    <input type="file" name="asset_selfie" id="selfieInput" class="d-none" accept="image/*" onchange="previewImage(this, 'selfiePreview', 'selfiePlaceholder')" required>
+                                    <input type="file" name="asset_selfie" id="selfieInput" class="d-none" accept="image/*" onchange="previewImage(this, 'selfiePreview', 'selfiePlaceholder', 'remove-selfie', 'container-selfie')" required>
                                 </div>
                             </div>
 
@@ -275,7 +358,6 @@
                                             </div>
                                         </div>
 
-                                        <!-- Hidden Checkbox Validasi -->
                                         <input type="checkbox" name="tos_agreement" id="tos_agreement" class="d-none" required>
 
                                         <button type="button" class="btn btn-outline-dark w-100 fw-bold py-2 mb-3" id="btnOpenAkad">
@@ -305,7 +387,6 @@
 <div class="modal fade" id="akadModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable modal-lg">
         <div class="modal-content border-0 shadow-lg rounded-4">
-            <!-- Header Jelas (Warna Background Pasti) -->
             <div class="modal-header text-white py-3" style="background-color: #3A6D48;">
                 <h5 class="modal-title fw-bold"><i class="fas fa-scroll me-2"></i>Syarat & Ketentuan Akad Qardh</h5>
             </div>
@@ -371,7 +452,6 @@
 
                 </div>
 
-                <!-- Final Agreement (Tanpa Huruf G) -->
                 <div class="card bg-white border-success border-2 shadow-sm">
                     <div class="card-body d-flex align-items-center p-4">
                         <input type="checkbox" class="form-check-input fs-4 mt-0 me-3 border-success" id="checkFinal" disabled style="cursor: not-allowed; width: 1.5em; height: 1.5em;">
@@ -396,9 +476,15 @@
 
 @push('scripts')
 <script>
-    // --- 1. LOGIC NOMINAL FORMAT & CHIPS ---
+    // Trigger Input File
+    function triggerUpload(inputId) {
+        document.getElementById(inputId).click();
+    }
+
+    // --- 1. LOGIC NOMINAL & SLIDER ---
     const amountInput = document.getElementById('amountInput'); // Hidden Integer
-    const amountDisplay = document.getElementById('amountDisplay'); // Visual Text
+    const amountDisplay = document.getElementById('amountDisplay'); // Text Display
+    const amountSlider = document.getElementById('amountSlider'); // Slider
     const tenorRange = document.getElementById('tenorRange');
     const tenorLabel = document.getElementById('tenorLabel');
     const maxTenorLabel = document.getElementById('maxTenorLabel');
@@ -413,17 +499,11 @@
         return parseInt(angka.replace(/\./g, '')) || 0;
     }
 
-    amountDisplay.addEventListener('input', function(e) {
-        let rawValue = cleanRupiah(this.value);
-        amountInput.value = rawValue;
-        this.value = formatRupiah(rawValue);
-        updateTenorLimit();
-    });
-
-    function updateTenorLimit() {
+    function updateCalculations() {
         let amount = parseInt(amountInput.value) || 0;
-        let maxTenor = 12;
+        let tenor = parseInt(tenorRange.value) || 1;
 
+        let maxTenor = 12;
         if (amount <= 2000000) maxTenor = 3;
         else if (amount <= 5000000) maxTenor = 6;
         else if (amount <= 10000000) maxTenor = 12;
@@ -434,65 +514,88 @@
 
         if (parseInt(tenorRange.value) > maxTenor) {
             tenorRange.value = maxTenor;
+            tenor = maxTenor; // Fix immediate calculation
         }
-        calculateInstallment();
-        updateChipsUI(amount);
-    }
 
-    function updateChipsUI(amount) {
-        document.querySelectorAll('.nominal-chip').forEach(chip => {
-            chip.classList.remove('active');
-            if(parseInt(chip.dataset.val) === amount) {
-                chip.classList.add('active');
-            }
-        });
-    }
-
-    function calculateInstallment() {
-        let amount = parseInt(amountInput.value) || 0;
-        let tenor = parseInt(tenorRange.value) || 1;
         let monthly = Math.ceil(amount / tenor);
         const fmt = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
 
         tenorLabel.innerText = tenor + " Bulan";
         monthlyDisplay.innerText = fmt.format(monthly);
         pokokDisplay.innerText = fmt.format(amount);
+
+        document.querySelectorAll('.nominal-chip').forEach(chip => {
+            chip.classList.remove('active');
+            if(parseInt(chip.dataset.val) === amount) chip.classList.add('active');
+        });
     }
 
-    tenorRange.addEventListener('input', calculateInstallment);
+    amountDisplay.addEventListener('input', function() {
+        let val = cleanRupiah(this.value);
+        amountInput.value = val;
+        amountSlider.value = val;
+        this.value = formatRupiah(val);
+        updateCalculations();
+    });
+
+    amountSlider.addEventListener('input', function() {
+        let val = parseInt(this.value);
+        amountInput.value = val;
+        amountDisplay.value = formatRupiah(val);
+        updateCalculations();
+    });
 
     document.querySelectorAll('.nominal-chip').forEach(chip => {
         chip.addEventListener('click', function() {
             let val = parseInt(this.dataset.val);
             amountInput.value = val;
             amountDisplay.value = formatRupiah(val);
-            updateTenorLimit();
+            amountSlider.value = val;
+            updateCalculations();
         });
     });
 
-    amountDisplay.value = formatRupiah(amountInput.value);
-    updateTenorLimit();
+    tenorRange.addEventListener('input', updateCalculations);
 
-    // --- 2. IMAGE PREVIEW ---
-    window.previewImage = function(input, imgId, placeholderId) {
-        const img = document.getElementById(imgId);
-        const placeholder = document.getElementById(placeholderId);
+    // --- 2. ASSET VALUE FORMATTER ---
+    const assetDisplay = document.getElementById('assetDisplay');
+    const assetInput = document.getElementById('assetInput');
+
+    assetDisplay.addEventListener('input', function() {
+        let val = cleanRupiah(this.value);
+        assetInput.value = val;
+        this.value = formatRupiah(val);
+    });
+
+    // --- 3. IMAGE PREVIEW (Fixed) ---
+    window.previewImage = function(input, imgId, placeholderId, btnRemoveId, containerId) {
         const file = input.files[0];
-
         if (file) {
             const reader = new FileReader();
             reader.onload = function(e) {
+                const img = document.getElementById(imgId);
                 img.src = e.target.result;
                 img.style.display = 'block';
-                placeholder.style.display = 'none';
-                input.parentElement.style.borderColor = '#3A6D48';
-                input.parentElement.style.backgroundColor = '#f4fcf6';
+                document.getElementById(placeholderId).style.opacity = '0';
+                document.getElementById(btnRemoveId).style.display = 'flex';
+                document.getElementById(containerId).classList.add('has-image');
             }
             reader.readAsDataURL(file);
         }
     }
 
-    // --- 3. AKAD CHECKLIST LOGIC ---
+    window.removeImage = function(event, inputId, imgId, placeholderId, btnRemoveId, containerId) {
+        event.stopPropagation();
+        document.getElementById(inputId).value = "";
+        const img = document.getElementById(imgId);
+        img.style.display = 'none';
+        img.src = "";
+        document.getElementById(placeholderId).style.opacity = '1';
+        document.getElementById(btnRemoveId).style.display = 'none';
+        document.getElementById(containerId).classList.remove('has-image');
+    }
+
+    // --- 4. AKAD CHECKLIST ---
     const akadModal = new bootstrap.Modal(document.getElementById('akadModal'));
     const btnOpenAkad = document.getElementById('btnOpenAkad');
     const checkPoints = document.querySelectorAll('.akad-check');
@@ -545,11 +648,11 @@
         hiddenTosInput.checked = true;
         mainSubmitBtn.disabled = false;
         akadSuccessMsg.classList.remove('d-none');
-        btnOpenAkad.classList.add('d-none'); // Sembunyikan tombol buka akad setelah setuju
+        btnOpenAkad.classList.add('d-none');
         akadModal.hide();
     });
 
-    // --- 4. LOADING ANIMATION ---
+    // --- 5. LOADING ANIMATION ---
     document.getElementById('loanForm').addEventListener('submit', function() {
         Swal.fire({
             title: 'FinVera AI Processing',
@@ -561,6 +664,10 @@
             backdrop: `rgba(0,0,0,0.8)`
         });
     });
+
+    // Init Defaults
+    amountDisplay.value = formatRupiah(amountInput.value);
+    updateCalculations();
 
 </script>
 @endpush

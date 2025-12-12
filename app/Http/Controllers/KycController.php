@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\KycVerification;
+use App\Notifications\SystemNotification;
 use App\Services\GeminiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class KycController extends Controller
 {
@@ -17,103 +19,137 @@ class KycController extends Controller
         $this->geminiService = $geminiService;
     }
 
-    /* ============================================================
-     * TAMPILKAN FORM KYC ATAU DATA KYC (READ-ONLY)
-     * ============================================================ */
     public function create()
     {
         $user = Auth::user();
-
-        // User tetap bisa melihat data mereka.
         return view('kyc.create', compact('user'));
     }
 
-    /* ============================================================
-     * PROSES SUBMIT KYC
-     * ============================================================ */
+    /**
+     * ============================================================
+     * STORE — PROSES SUBMIT KYC
+     * ============================================================
+     */
     public function store(Request $request)
     {
-        /* ------------------------------------------------------------
-         * 1. VALIDASI INPUT
-         * ------------------------------------------------------------ */
+        // ------------------------------------------------------------
+        // 1. Validasi Input
+        // ------------------------------------------------------------
         $request->validate([
             'nik'          => 'required|numeric|digits:16|unique:kyc_verifications,nik',
-            'ktp_image'    => 'required|image|mimes:jpeg,png,jpg|max:4096',
-            'selfie_image' => 'required|image|mimes:jpeg,png,jpg|max:4096',
+            'ktp_image'    => 'required|image|mimes:jpeg,png,jpg|max:5120',
+            'selfie_image' => 'required|image|mimes:jpeg,png,jpg|max:5120',
+        ], [
+            'nik.required' => 'NIK wajib diisi.',
+            'nik.digits'   => 'NIK harus 16 digit.',
+            'nik.unique'   => 'NIK ini sudah terdaftar dalam sistem.',
+            'ktp_image.max' => 'Ukuran foto KTP maksimal 5MB.',
+            'selfie_image.max' => 'Ukuran foto Selfie maksimal 5MB.',
         ]);
 
         $user = Auth::user();
 
-        // Cegah double submit jika status bukan "unverified"
+        // ------------------------------------------------------------
+        // Cegah user submit ulang jika KYC sudah pending/verified
+        // ------------------------------------------------------------
         if (in_array($user->kyc_status, ['verified', 'pending'])) {
-            return back()->with('error', 'Data Anda sedang diproses atau sudah terverifikasi.');
+            return back()->with('info', 'Verifikasi Anda sedang diproses atau sudah disetujui.');
         }
 
-        /* ------------------------------------------------------------
-         * 2. SIMPAN FILE KTP & SELFIE
-         * ------------------------------------------------------------ */
         DB::beginTransaction();
-        try {
-            $ktpPath    = $request->file('ktp_image')->store('kyc/ktp', 'public');
-            $selfiePath = $request->file('selfie_image')->store('kyc/selfie', 'public');
 
-            /* --------------------------------------------------------
-             * 3. ANALISIS AI (GeminiService)
-             * -------------------------------------------------------- */
+        try {
+            // ------------------------------------------------------------
+            // 2. Upload File KTP & Selfie
+            // ------------------------------------------------------------
+            $ktpPath    = Storage::disk('public')->put('kyc/ktp', $request->file('ktp_image'));
+            $selfiePath = Storage::disk('public')->put('kyc/selfie', $request->file('selfie_image'));
+
+            // ------------------------------------------------------------
+            // 3. Analisis AI (Gemini Service)
+            // ------------------------------------------------------------
             $aiResult = $this->geminiService->verifyIdentity($ktpPath, $selfiePath);
 
-            // Fallback jika AI gagal
-            if (!$aiResult) {
-                $aiResult = [
-                    'face_match_score' => 75,
-                    'is_valid'         => true,
-                    'reason'           => 'AI Service Unavailable (Fallback)',
-                    'nik'              => $request->nik,
-                ];
+            $status  = 'rejected';
+            $score   = 0;
+            $reason  = 'Gagal terhubung ke layanan verifikasi.';
+
+            if ($aiResult) {
+                $score   = $aiResult['face_match_score'] ?? 0;
+                $isValid = $aiResult['is_valid'] ?? false;
+                $reason  = $aiResult['reason'] ?? 'Data wajah tidak cocok atau dokumen buram.';
+
+                if ($isValid && $score >= 75) {
+                    $status = 'verified';
+                }
+            } else {
+                $reason = "Layanan AI tidak merespons. Silakan coba lagi.";
             }
 
-            $status = $aiResult['is_valid'] ? 'verified' : 'rejected';
-
-            /* --------------------------------------------------------
-             * 4. SIMPAN DATA KYC
-             * -------------------------------------------------------- */
+            // ------------------------------------------------------------
+            // 4. Simpan Data KYC ke Database
+            // ------------------------------------------------------------
             KycVerification::create([
                 'user_id'           => $user->id,
                 'nik'               => $request->nik,
                 'ktp_image_path'    => $ktpPath,
                 'selfie_image_path' => $selfiePath,
                 'ocr_data'          => $aiResult,
-                'face_match_score'  => $aiResult['face_match_score'] ?? 0,
+                'face_match_score'  => $score,
                 'status'            => $status === 'verified' ? 'approved' : 'rejected',
-                'rejection_reason'  => $status === 'rejected' ? ($aiResult['reason'] ?? 'Wajah tidak cocok') : null,
+                'rejection_reason'  => $status === 'rejected' ? $reason : null,
                 'verified_at'       => $status === 'verified' ? now() : null,
             ]);
 
-            /* --------------------------------------------------------
-             * 5. UPDATE STATUS KYC USER
-             * -------------------------------------------------------- */
+            // Update status KYC user
             $user->update([
-                'kyc_status' => $status,
+                'kyc_status' => $status
             ]);
+
+            // ------------------------------------------------------------
+            // 5. Kirim Notifikasi ke User
+            // ------------------------------------------------------------
+            if ($status === 'verified') {
+                $user->notify(new SystemNotification([
+                    'title'   => 'KYC Berhasil',
+                    'message' => 'Selamat! Identitas Anda telah terverifikasi. Anda sekarang dapat mengajukan pinjaman.',
+                    'type'    => 'success',
+                    'url'     => route('loans.create')
+                ]));
+
+            } else {
+                $user->notify(new SystemNotification([
+                    'title'   => 'KYC Ditolak',
+                    'message' => 'Maaf, verifikasi identitas Anda ditolak. Silakan periksa alasan dan unggah ulang dokumen.',
+                    'type'    => 'danger',
+                    'url'     => route('kyc.create')
+                ]));
+            }
 
             DB::commit();
 
-            /* --------------------------------------------------------
-             * 6. RESPONSE
-             * -------------------------------------------------------- */
+            // ------------------------------------------------------------
+            // 6. Redirect Result
+            // ------------------------------------------------------------
             if ($status === 'verified') {
                 return redirect()
                     ->route('kyc.create')
-                    ->with('success', 'Verifikasi Berhasil! Identitas cocok.');
+                    ->with('success', 'Selamat! Identitas Berhasil Diverifikasi.');
             }
 
             return redirect()
                 ->route('kyc.create')
-                ->with('error', 'Verifikasi Gagal: ' . ($aiResult['reason'] ?? 'Data tidak valid.'));
+                ->with('error', 'Verifikasi Ditolak: ' . $reason . ' Silakan perbaiki foto dan coba lagi.');
 
         } catch (\Exception $e) {
             DB::rollback();
-            return back()->with('error', 'Kesalahan Sistem: ' . $e->getMessage());
+
+            if (isset($ktpPath))    Storage::disk('public')->delete($ktpPath);
+            if (isset($selfiePath)) Storage::disk('public')->delete($selfiePath);
+
+            return back()
+                ->withInput()
+                ->with('error', 'Terjadi kesalahan sistem: ' . $e->getMessage());
         }
     }
 }

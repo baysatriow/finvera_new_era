@@ -7,6 +7,7 @@ use App\Models\Installment;
 use App\Models\Loan;
 use App\Models\LoanApplication;
 use App\Models\LoanProduct;
+use App\Notifications\SystemNotification;
 use App\Services\GeminiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,14 +18,21 @@ class LoanController extends Controller
 {
     protected $geminiService;
 
+    /**
+     * ============================================================
+     * CONSTRUCT — INIT GEMINI SERVICE
+     * ============================================================
+     */
     public function __construct(GeminiService $geminiService)
     {
         $this->geminiService = $geminiService;
     }
 
-    /* ============================================================
-     * RIWAYAT PENGAJUAN PINJAMAN USER
-     * ============================================================ */
+    /**
+     * ============================================================
+     * INDEX — LIST PENGAJUAN PINJAMAN USER
+     * ============================================================
+     */
     public function index()
     {
         $applications = LoanApplication::where('user_id', Auth::id())
@@ -34,29 +42,28 @@ class LoanController extends Controller
         return view('loans.index', compact('applications'));
     }
 
-    /* ============================================================
-     * HALAMAN FORM PENGAJUAN PINJAMAN
-     * ============================================================ */
+    /**
+     * ============================================================
+     * CREATE — FORM PENGAJUAN PINJAMAN
+     * ============================================================
+     */
     public function create()
     {
         $user = Auth::user();
 
-        // Pastikan user sudah KYC
         if ($user->kyc_status !== 'verified') {
             return redirect()->route('kyc.create')->with('warning', 'Verifikasi identitas dulu.');
         }
 
-        // Pastikan user sudah daftar rekening bank
         if (!BankAccount::where('user_id', $user->id)->exists()) {
             return redirect()->route('bank.create')->with('warning', 'Daftarkan rekening dulu.');
         }
 
-        // Cegah pengajuan jika masih ada pinjaman aktif atau pending
-        $hasActive = LoanApplication::where('user_id', $user->id)
-            ->whereIn('status', ['pending', 'approved'])
-            ->exists();
-
-        if ($hasActive) {
+        if (
+            LoanApplication::where('user_id', $user->id)
+                ->whereIn('status', ['pending', 'approved'])
+                ->exists()
+        ) {
             return redirect()->route('dashboard')->with('error', 'Anda masih memiliki pinjaman aktif atau dalam proses.');
         }
 
@@ -64,9 +71,11 @@ class LoanController extends Controller
         return view('loans.create', compact('product'));
     }
 
-    /* ============================================================
-     * SUBMIT PENGAJUAN PINJAMAN
-     * ============================================================ */
+    /**
+     * ============================================================
+     * STORE — PROSES SUBMIT PENGAJUAN PINJAMAN
+     * ============================================================
+     */
     public function store(Request $request)
     {
         $request->validate([
@@ -81,14 +90,10 @@ class LoanController extends Controller
         ]);
 
         $user = Auth::user();
-
-        // Upload file jaminan
         $assetDocPath    = $request->file('asset_document')->store('assets', 'public');
         $assetSelfiePath = $request->file('asset_selfie')->store('assets', 'public');
 
-        /* ------------------------------------------------------------
-         * AI CREDIT SCORING
-         * ------------------------------------------------------------ */
+        // --- AI SCORING ---
         $aiAnalysis = $this->geminiService->analyzeCreditProfile(
             $user,
             $request->amount,
@@ -97,25 +102,25 @@ class LoanController extends Controller
             $request->asset_type
         );
 
+        $status = 'pending';
+
         if (!$aiAnalysis) {
-            // Fallback jika AI gagal
-            $score     = 75;
-            $status    = 'pending';
-            $userMsg   = "Analisis AI tertunda, menunggu review manual.";
+            $score    = 75;
+            $userMsg  = "Analisis AI tertunda, menunggu review manual.";
             $adminNote = "AI Service Timeout.";
         } else {
-            $score     = $aiAnalysis['credit_score'];
-            $status    = ($score >= 75) ? 'approved' : 'pending';
-            $userMsg   = $aiAnalysis['user_message'];
-            $adminNote = "Risk Analysis: " . $aiAnalysis['admin_analysis'];
+            $score = $aiAnalysis['credit_score'];
+            $userMsg = $aiAnalysis['user_message'];
+            $adminNote = "Risk Analysis: {$aiAnalysis['admin_analysis']}";
+
+            if ($score >= 75) {
+                $adminNote .= " [AI RECOMMENDATION: HIGHLY RECOMMENDED TO APPROVE]";
+            }
         }
 
-        /* ------------------------------------------------------------
-         * SIMPAN PENGAJUAN PINJAMAN
-         * ------------------------------------------------------------ */
         DB::beginTransaction();
         try {
-            $finalPurpose = $request->purpose . " [Jaminan: {$request->asset_type}]";
+            $finalPurpose = $request->purpose . " [Jaminan: " . $request->asset_type . "]";
 
             $application = LoanApplication::create([
                 'user_id'            => $user->id,
@@ -130,23 +135,31 @@ class LoanController extends Controller
                 'ai_user_message'    => $userMsg,
                 'status'             => $status,
                 'admin_note'         => $adminNote,
-                'reviewed_at'        => $status === 'approved' ? now() : null,
+                'reviewed_at'        => null,
             ]);
 
-            // Update credit score user
             $user->update(['credit_score' => $score]);
 
-            // Jika langsung disetujui oleh AI → buat pinjaman aktif
-            if ($status === 'approved') {
-                $this->generateActiveLoan($application);
-            }
+            // --- NOTIFIKASI PENGAJUAN DITERIMA ---
+            $user->notify(new SystemNotification([
+                'title'   => 'Pengajuan Diterima',
+                'message' => 'Pengajuan pinjaman Anda sebesar Rp ' . number_format($request->amount, 0, ',', '.') . ' telah diterima dan sedang direview.',
+                'type'    => 'info',
+                'url'     => route('loans.show', $application->id)
+            ]));
 
             DB::commit();
 
-            $msgType = $status === 'approved' ? 'success' : 'info';
-            return redirect()
-                ->route('history')
-                ->with($msgType, "Pengajuan berhasil dikirim. Status: " . ucfirst($status));
+            $popupData = [
+                'title'   => 'Analisis Selesai',
+                'score'   => $score,
+                'message' => $userMsg,
+                'status'  => $status
+            ];
+
+            return redirect()->route('loans.show', $application->id)
+                ->with('success', "Pengajuan berhasil dikirim.")
+                ->with('ai_analysis_popup', $popupData);
 
         } catch (\Exception $e) {
             DB::rollback();
@@ -154,45 +167,48 @@ class LoanController extends Controller
         }
     }
 
-    /* ============================================================
-     * GENERATE PINJAMAN AKTIF + CICILAN
-     * ============================================================ */
+    /**
+     * ============================================================
+     * HELPER — GENERATE DATA PINJAMAN AKTIF & CICILAN
+     * ============================================================
+     */
     private function generateActiveLoan(LoanApplication $application)
     {
+        $tenorInt = (int) $application->tenor;
+
         $loan = Loan::create([
-            'user_id'          => $application->user_id,
-            'application_id'   => $application->id,
-            'loan_code'        => 'LN-' . strtoupper(Str::random(8)),
-            'total_amount'     => $application->amount,
-            'remaining_balance'=> $application->amount,
-            'status'           => 'active',
-            'start_date'       => now(),
-            'due_date'         => now()->addMonths($application->tenor),
-            'disbursed_at'     => now(),
+            'user_id'           => $application->user_id,
+            'application_id'    => $application->id,
+            'loan_code'         => 'LN-' . strtoupper(Str::random(8)),
+            'total_amount'      => $application->amount,
+            'remaining_balance' => $application->amount,
+            'status'            => 'active',
+            'start_date'        => now(),
+            'due_date'          => now()->addMonths($tenorInt),
+            'disbursed_at'      => now(),
         ]);
 
-        // Buat cicilan bulanan
-        $monthlyAmount = ceil($application->amount / $application->tenor);
+        $monthlyAmount = ceil($application->amount / $tenorInt);
 
-        for ($i = 1; $i <= $application->tenor; $i++) {
+        for ($i = 1; $i <= $tenorInt; $i++) {
             Installment::create([
-                'loan_id'           => $loan->id,
-                'installment_number'=> $i,
-                'due_date'          => now()->addMonths($i),
-                'amount'            => $monthlyAmount,
-                'status'            => 'pending',
+                'loan_id'            => $loan->id,
+                'installment_number' => $i,
+                'due_date'           => now()->addMonths($i),
+                'amount'             => $monthlyAmount,
+                'status'             => 'pending',
             ]);
         }
     }
 
-    /* ============================================================
-     * DETAIL PENGAJUAN PINJAMAN USER
-     * ============================================================ */
+    /**
+     * ============================================================
+     * SHOW — DETAIL PENGAJUAN PINJAMAN
+     * ============================================================
+     */
     public function show(LoanApplication $loan)
     {
-        if ($loan->user_id !== Auth::id()) {
-            abort(403);
-        }
+        if ($loan->user_id !== Auth::id()) abort(403);
 
         $loan->load('loan.installments');
         return view('loans.show', compact('loan'));

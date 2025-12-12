@@ -7,7 +7,6 @@
     <h3 class="fw-bold text-finvera">Buat Akun Baru</h3>
     <p class="text-muted">Langkah awal menuju kebebasan finansial syariah.</p>
 
-    <!-- Progress Indicator -->
     <div class="progress" style="height: 6px;">
         <div class="progress-bar bg-finvera" role="progressbar" style="width: 50%" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
     </div>
@@ -40,19 +39,30 @@
         <label class="form-label small fw-bold text-muted">Nomor WhatsApp</label>
         <div class="input-group">
             <span class="input-group-text bg-light text-muted fw-bold">+62</span>
+
             <input type="number" name="phone" class="form-control" placeholder="81234567890" value="{{ old('phone') }}" required>
         </div>
-        <div class="form-text text-muted small"><i class="fas fa-info-circle me-1"></i> Pastikan nomor aktif dan terhubung WhatsApp untuk notifikasi penting.</div>
+        <div class="form-text text-muted small"><i class="fas fa-info-circle me-1"></i> Masukkan nomor HP aktif (contoh: 812xxxx atau 0812xxxx).</div>
     </div>
 
     <div class="row">
         <div class="col-md-6 mb-3">
             <label class="form-label small fw-bold text-muted">Kata Sandi</label>
-            <input type="password" name="password" class="form-control" placeholder="Min. 8 karakter" required>
+            <div class="input-group">
+                <input type="password" name="password" class="form-control border-end-0" id="password" placeholder="Min. 8 karakter" required>
+                <span class="input-group-text bg-white border-start-0" style="cursor: pointer;" onclick="togglePassword('password', 'iconPass')">
+                    <i class="fas fa-eye text-muted" id="iconPass"></i>
+                </span>
+            </div>
         </div>
         <div class="col-md-6 mb-3">
             <label class="form-label small fw-bold text-muted">Konfirmasi Sandi</label>
-            <input type="password" name="password_confirmation" class="form-control" placeholder="Ulangi sandi" required>
+            <div class="input-group">
+                <input type="password" name="password_confirmation" class="form-control border-end-0" id="password_confirm" placeholder="Ulangi sandi" required>
+                <span class="input-group-text bg-white border-start-0" style="cursor: pointer;" onclick="togglePassword('password_confirm', 'iconConfirm')">
+                    <i class="fas fa-eye text-muted" id="iconConfirm"></i>
+                </span>
+            </div>
         </div>
     </div>
 
@@ -66,4 +76,23 @@
         <p class="mb-0 text-muted">Sudah punya akun? <a href="{{ route('login') }}" class="text-finvera fw-bold text-decoration-none">Masuk</a></p>
     </div>
 </form>
+
+@push('scripts')
+<script>
+    function togglePassword(inputId, iconId) {
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(iconId);
+
+        if (input.type === "password") {
+            input.type = "text";
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = "password";
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+</script>
+@endpush
 @endsection

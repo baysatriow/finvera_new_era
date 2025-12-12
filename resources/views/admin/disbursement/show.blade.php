@@ -3,8 +3,69 @@
 @section('page_title', 'Detail Pembayaran')
 
 @section('content')
+@push('styles')
+<link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+<style>
+    .doc-img-container {
+        height: 180px;
+        width: 100%;
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+    }
+    .doc-img {
+        max-height: 95%;
+        max-width: 95%;
+        object-fit: contain;
+        transition: transform 0.3s;
+    }
+    .doc-img-container:hover .doc-img { transform: scale(1.05); }
+
+    .doc-overlay-btn {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        background: rgba(0,0,0,0.6);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    .doc-img-container:hover .doc-overlay-btn { opacity: 1; }
+
+    .btn-outline-custom {
+        border: 1px solid #3A6D48;
+        color: #3A6D48;
+        background-color: white;
+        font-weight: 600;
+    }
+    .btn-outline-custom:hover {
+        background-color: #3A6D48;
+        color: white;
+    }
+</style>
+@endpush
+
 <div class="row g-4">
-    <!-- STATISTIK RINGKAS (HEADER) -->
+    <!-- FITUR: NAVIGASI KEMBALI -->
+    <div class="col-12">
+        <a href="{{ route('admin.disbursement.index') }}" class="text-decoration-none text-muted fw-bold small">
+            <i class="fas fa-arrow-left me-1"></i> Kembali ke Daftar
+        </a>
+    </div>
+
+    <!-- FITUR: STATISTIK RINGKAS -->
     <div class="col-12">
         <div class="row g-3">
             <div class="col-md-4">
@@ -12,7 +73,7 @@
                     <div class="card-body p-4">
                         <small class="text-white-50 text-uppercase fw-bold">Total Pinjaman</small>
                         <h3 class="fw-bold mb-0 mt-1">Rp {{ number_format($loan->total_amount, 0, ',', '.') }}</h3>
-                        <div class="mt-2 small opacity-75">Kode: {{ $loan->loan_code }}</div>
+                        <div class="mt-2 small opacity-75 font-monospace">Kode: {{ $loan->loan_code }}</div>
                     </div>
                 </div>
             </div>
@@ -41,7 +102,7 @@
         </div>
     </div>
 
-    <!-- INFO PEMINJAM -->
+    <!-- FITUR: INFORMASI PEMINJAM -->
     <div class="col-md-4">
         <div class="card border-0 shadow-sm rounded-4 mb-4">
             <div class="card-header bg-white py-3 px-4 border-bottom-0">
@@ -58,113 +119,160 @@
                     </div>
                 </div>
 
-                <ul class="list-group list-group-flush small">
+                <ul class="list-group list-group-flush small mb-3">
                     <li class="list-group-item px-0 border-0 d-flex justify-content-between">
                         <span class="text-muted">Nomor HP</span>
-                        <span class="fw-bold">{{ $loan->user->phone }}</span>
+                        <span class="fw-bold text-dark">{{ $loan->user->phone }}</span>
                     </li>
                     <li class="list-group-item px-0 border-0 d-flex justify-content-between">
                         <span class="text-muted">Pekerjaan</span>
-                        <span class="fw-bold">{{ $loan->user->job ?? '-' }}</span>
+                        <span class="fw-bold text-dark">{{ $loan->user->job ?? '-' }}</span>
                     </li>
                     <li class="list-group-item px-0 border-0">
                         <span class="text-muted d-block mb-1">Alamat</span>
-                        <span class="fw-bold d-block lh-sm">{{ $loan->user->address_full ?? '-' }}</span>
+                        <span class="fw-bold d-block lh-sm text-dark">{{ $loan->user->address_full ?? '-' }}</span>
                     </li>
                 </ul>
 
-                <div class="d-grid mt-3">
-                    <a href="{{ route('admin.borrowers.show', $loan->user_id) }}" class="btn btn-outline-finvera btn-sm rounded-pill">
-                        Lihat Profil Lengkap
+                <div class="d-grid">
+                    <a href="{{ route('admin.borrowers.show', $loan->user_id) }}" class="btn btn-outline-custom btn-sm rounded-pill fw-bold py-2">
+                        Lihat Profil Lengkap <i class="fas fa-arrow-right ms-1"></i>
                     </a>
                 </div>
             </div>
         </div>
 
-        <!-- Asset Preview Mini -->
+        <!-- FITUR: ASET JAMINAN -->
         <div class="card border-0 shadow-sm rounded-4">
             <div class="card-header bg-white py-3 px-4 border-bottom-0">
                 <h6 class="fw-bold mb-0 text-dark">Aset Jaminan</h6>
             </div>
             <div class="card-body p-4 pt-0">
-                <div class="p-3 bg-light rounded-3 mb-3">
-                    <small class="text-muted d-block">Jenis Aset</small>
-                    <strong>{{ $loan->application->asset_type ?? 'Aset' }}</strong>
+                <div class="p-3 bg-light rounded-3 mb-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted d-block">Jenis Aset</small>
+                        <strong class="text-dark">{{ $loan->application->asset_type ?? 'Aset' }}</strong>
+                    </div>
+                    <div class="text-end">
+                        <small class="text-muted d-block">Nilai</small>
+                        <strong class="text-dark">Rp {{ number_format($loan->application->asset_value ?? 0, 0, ',', '.') }}</strong>
+                    </div>
                 </div>
-                @if($loan->application && $loan->application->asset_document_path)
-                    <img src="{{ asset('storage/' . $loan->application->asset_document_path) }}" class="img-fluid rounded border w-100" alt="Aset">
-                @endif
+
+                <div class="row g-2">
+                    <div class="col-6">
+                         @if($loan->application && $loan->application->asset_document_path)
+                            <div class="doc-img-container">
+                                <img src="{{ asset('storage/' . $loan->application->asset_document_path) }}" class="doc-img" alt="Dokumen">
+                                <a href="{{ asset('storage/' . $loan->application->asset_document_path) }}" target="_blank" class="doc-overlay-btn"><i class="fas fa-expand-alt"></i></a>
+                            </div>
+                        @else
+                            <div class="doc-img-container text-muted small">No Image</div>
+                        @endif
+                    </div>
+                     <div class="col-6">
+                         @if($loan->application && $loan->application->asset_selfie_path)
+                            <div class="doc-img-container">
+                                <img src="{{ asset('storage/' . $loan->application->asset_selfie_path) }}" class="doc-img" alt="Selfie">
+                                <a href="{{ asset('storage/' . $loan->application->asset_selfie_path) }}" target="_blank" class="doc-overlay-btn"><i class="fas fa-expand-alt"></i></a>
+                            </div>
+                        @else
+                            <div class="doc-img-container text-muted small">No Image</div>
+                        @endif
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- TABEL CICILAN -->
+    <!-- FITUR: JADWAL CICILAN -->
     <div class="col-md-8">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-header bg-white py-4 px-4 border-bottom-0 d-flex justify-content-between align-items-center">
                 <h5 class="fw-bold mb-0 text-dark">Jadwal Cicilan</h5>
                 @if($loan->status == 'paid')
-                    <span class="badge bg-success px-3 py-2"><i class="fas fa-check-double me-1"></i> LUNAS TOTAL</span>
+                    <span class="badge bg-success px-3 py-2 rounded-pill"><i class="fas fa-check-double me-1"></i> LUNAS TOTAL</span>
                 @else
-                    <span class="badge bg-primary px-3 py-2">Aktif</span>
+                    <span class="badge bg-primary px-3 py-2 rounded-pill">Aktif</span>
                 @endif
             </div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light text-muted small text-uppercase">
-                        <tr>
-                            <th class="ps-4 py-3">Ke-</th>
-                            <th>Jatuh Tempo</th>
-                            <th>Nominal</th>
-                            <th>Denda (Ta'zir)</th>
-                            <th>Total Bayar</th>
-                            <th>Status</th>
-                            <th class="pe-4 text-end">Tgl Bayar</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($loan->installments as $ins)
-                        <tr>
-                            <td class="ps-4 fw-bold text-muted">{{ $ins->installment_number }}</td>
-                            <td>
-                                <span class="{{ $ins->status != 'paid' && $ins->due_date < now() ? 'text-danger fw-bold' : '' }}">
-                                    {{ $ins->due_date->format('d M Y') }}
-                                </span>
-                            </td>
-                            <td>Rp {{ number_format($ins->amount, 0, ',', '.') }}</td>
-                            <td>
-                                @if($ins->tazir_amount > 0)
-                                    <span class="text-danger small">+ Rp {{ number_format($ins->tazir_amount, 0, ',', '.') }}</span>
-                                @else
-                                    -
-                                @endif
-                            </td>
-                            <td class="fw-bold">
-                                Rp {{ number_format($ins->amount + $ins->tazir_amount, 0, ',', '.') }}
-                            </td>
-                            <td>
-                                @if($ins->status == 'paid')
-                                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill">Lunas</span>
-                                @elseif($ins->status == 'late')
-                                    <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill">Terlambat</span>
-                                @else
-                                    <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill">Belum</span>
-                                @endif
-                            </td>
-                            <td class="pe-4 text-end">
-                                @if($ins->paid_at)
-                                    <div class="small text-success fw-bold">{{ $ins->paid_at->format('d/m/y') }}</div>
-                                    <div class="small text-muted">{{ $ins->paid_at->format('H:i') }}</div>
-                                @else
-                                    <span class="text-muted small">-</span>
-                                @endif
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+            <div class="card-body px-4 pt-0 pb-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle w-100" id="disbursementInstallmentTable">
+                        <thead class="bg-light text-muted small text-uppercase">
+                            <tr>
+                                <th class="ps-3 py-3">Ke-</th>
+                                <th>Jatuh Tempo</th>
+                                <th>Nominal</th>
+                                <th>Denda</th>
+                                <th>Total</th>
+                                <th class="text-center">Status</th>
+                                <th class="pe-3 text-end">Tgl Bayar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($loan->installments as $ins)
+                            <tr>
+                                <td class="ps-3 fw-bold text-muted">{{ $ins->installment_number }}</td>
+                                <td>
+                                    <span class="{{ $ins->status != 'paid' && $ins->due_date < now() ? 'text-danger fw-bold' : '' }}">
+                                        {{ $ins->due_date->format('d M Y') }}
+                                    </span>
+                                </td>
+                                <td>Rp {{ number_format($ins->amount, 0, ',', '.') }}</td>
+                                <td>
+                                    @if($ins->tazir_amount > 0)
+                                        <span class="text-danger small">+{{ number_format($ins->tazir_amount, 0, ',', '.') }}</span>
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td class="fw-bold text-dark">
+                                    Rp {{ number_format($ins->amount + $ins->tazir_amount, 0, ',', '.') }}
+                                </td>
+                                <td class="text-center">
+                                    @if($ins->status == 'paid')
+                                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">Lunas</span>
+                                    @elseif($ins->status == 'late')
+                                        <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-3">Terlambat</span>
+                                    @else
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-3">Belum</span>
+                                    @endif
+                                </td>
+                                <td class="pe-3 text-end">
+                                    @if($ins->paid_at)
+                                        <div class="small text-success fw-bold">{{ $ins->paid_at->format('d/m/y') }}</div>
+                                        <div class="small text-muted" style="font-size: 0.7rem;">{{ $ins->paid_at->format('H:i') }}</div>
+                                    @else
+                                        <span class="text-muted small">-</span>
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#disbursementInstallmentTable').DataTable({
+            language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/id.json' },
+            searching: false,
+            paging: true,
+            pageLength: 6,
+            lengthChange: false,
+            info: false,
+            ordering: false
+        });
+    });
+</script>
+@endpush
 @endsection

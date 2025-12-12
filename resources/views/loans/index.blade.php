@@ -20,9 +20,41 @@
     .page-item.active .page-link {
         background-color: #3A6D48;
         border-color: #3A6D48;
+        color: white;
     }
     .page-link { color: #3A6D48; }
     .page-link:hover { color: #2c5236; }
+
+    .btn-finvera-solid {
+        background-color: #3A6D48;
+        color: white;
+        border: none;
+        transition: all 0.3s;
+    }
+    .btn-finvera-solid:hover {
+        background-color: #2c5236;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(58, 109, 72, 0.2);
+    }
+    .btn-outline-custom {
+        border: 1px solid #dee2e6;
+        color: #3A6D48;
+        background-color: white;
+        transition: all 0.3s;
+    }
+    .btn-outline-custom:hover {
+        border-color: #3A6D48;
+        background-color: #f4fcf6;
+        color: #2c5236;
+    }
+
+    .btn-disabled-custom {
+        background-color: #e9ecef;
+        color: #adb5bd;
+        border: 1px solid #dee2e6;
+        cursor: not-allowed;
+    }
 </style>
 @endpush
 
@@ -32,11 +64,25 @@
             <h5 class="fw-bold mb-0 text-dark">Data Riwayat Pinjaman</h5>
             <p class="text-muted small mb-0">Semua riwayat pengajuan dan status pembayaran Anda.</p>
         </div>
-        <a href="{{ route('loans.create') }}" class="btn btn-finvera rounded-pill px-4 shadow-sm">
-            <i class="fas fa-plus me-2"></i> Ajukan Baru
-        </a>
+
+        @php
+            $hasActiveLoan = \App\Models\LoanApplication::where('user_id', Auth::id())
+                ->whereIn('status', ['pending', 'approved', 'active'])
+                ->exists();
+        @endphp
+
+        @if($hasActiveLoan)
+            <button type="button" class="btn btn-disabled-custom rounded-pill px-4 shadow-sm fw-bold" onclick="Swal.fire('Info', 'Anda memiliki pinjaman aktif atau dalam proses. Mohon selesaikan terlebih dahulu.', 'info')">
+                <i class="fas fa-plus me-2"></i> Ajukan Baru
+            </button>
+        @else
+            <a href="{{ route('loans.create') }}" class="btn btn-finvera-solid rounded-pill px-4 shadow-sm fw-bold">
+                <i class="fas fa-plus me-2"></i> Ajukan Baru
+            </a>
+        @endif
     </div>
-    <div class="card-body p-4">
+
+    <div class="card-body p-4 pt-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle w-100" id="loansTable">
                 <thead class="bg-light text-muted small text-uppercase">
@@ -54,15 +100,15 @@
                     @foreach($applications as $app)
                     <tr>
                         <td class="ps-4">
-                            <span class="d-none">{{ $app->created_at->format('Ymd') }}</span> <!-- Sorting helper -->
+                            <span class="d-none">{{ $app->created_at->format('Ymd') }}</span>
                             <div class="fw-bold text-dark">{{ $app->created_at->format('d M Y') }}</div>
                             <div class="small text-muted">{{ $app->created_at->format('H:i') }} WIB</div>
                         </td>
                         <td>
-                            <span class="badge bg-light text-dark border">#{{ str_pad($app->id, 6, '0', STR_PAD_LEFT) }}</span>
+                            <span class="badge bg-light text-dark border font-monospace">#{{ str_pad($app->id, 6, '0', STR_PAD_LEFT) }}</span>
                         </td>
                         <td>
-                            <span class="d-inline-block text-truncate" style="max-width: 150px;" title="{{ $app->purpose }}">
+                            <span class="d-inline-block text-truncate" style="max-width: 180px;" title="{{ $app->purpose }}">
                                 {{ $app->purpose }}
                             </span>
                         </td>
@@ -75,7 +121,7 @@
                                     'pending' => ['bg' => 'warning', 'icon' => 'clock', 'text' => 'Review'],
                                     'rejected' => ['bg' => 'danger', 'icon' => 'times-circle', 'text' => 'Ditolak'],
                                     'paid' => ['bg' => 'primary', 'icon' => 'check-double', 'text' => 'Lunas'],
-                                    default => ['bg' => 'secondary', 'icon' => 'question-circle', 'text' => $app->status]
+                                    default => ['bg' => 'secondary', 'icon' => 'question-circle', 'text' => ucfirst($app->status)]
                                 };
                             @endphp
                             <span class="badge bg-{{ $statusConfig['bg'] }} bg-opacity-10 text-{{ $statusConfig['bg'] }} px-3 py-2 rounded-pill">
@@ -83,8 +129,8 @@
                             </span>
                         </td>
                         <td class="text-end pe-4">
-                            <a href="{{ route('loans.show', $app->id) }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
-                                Detail
+                            <a href="{{ route('loans.show', $app->id) }}" class="btn btn-sm btn-outline-custom rounded-pill px-3 fw-bold">
+                                Detail <i class="fas fa-arrow-right ms-1"></i>
                             </a>
                         </td>
                     </tr>
@@ -99,6 +145,7 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     $(document).ready(function() {
         $('#loansTable').DataTable({
@@ -112,11 +159,12 @@
                     last: "Akhir",
                     next: "&raquo;",
                     previous: "&laquo;"
-                }
+                },
+                zeroRecords: "Belum ada riwayat pinjaman."
             },
-            order: [[ 0, "desc" ]], // Urutkan berdasarkan tanggal terbaru
+            order: [[ 0, "desc" ]],
             columnDefs: [
-                { orderable: false, targets: 6 } // Matikan sorting di kolom aksi
+                { orderable: false, targets: 6 }
             ]
         });
     });

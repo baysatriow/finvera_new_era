@@ -6,58 +6,72 @@ use App\Services\GeminiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Session;
 
 class DashboardController extends Controller
 {
     protected $geminiService;
 
+    /* ============================================================
+     * CONSTRUCTOR
+     * ============================================================ */
     public function __construct(GeminiService $geminiService)
     {
         $this->geminiService = $geminiService;
     }
 
     /* ============================================================
-     * DASHBOARD BORROWER / ADMIN REDIRECT
+     * INDEX — HALAMAN DASHBOARD USER
      * ============================================================ */
     public function index()
     {
         $user = Auth::user();
 
-        // Redirect khusus admin
         if ($user->role === 'admin') {
             return redirect()->route('admin.dashboard');
         }
 
-        // User borrower wajib melengkapi alamat
         if (empty($user->address_full)) {
             return redirect()->route('register.step2');
         }
 
-        // NOTE:
-        // Tidak ada pemanggilan AI langsung di halaman ini (agar loading instan).
         return view('dashboard.borrower');
     }
 
     /* ============================================================
-     * API AJAX — Ambil Saran AI secara Asinkron
+     * API — AMBIL SARAN AI (NON BLOCKING / ASYNC)
      * ============================================================ */
     public function getAiAdvice()
     {
-        $user = Auth::user();
+        $user     = Auth::user();
+        $cacheKey = 'ai_advice_' . $user->id;
 
-        // Cache 24 jam — mempercepat respons setelah pemanggilan pertama
-        $advice = Cache::remember(
-            'ai_advice_' . $user->id,
-            60 * 24,
-            function () use ($user) {
-                $analysis = $this->geminiService->analyzeCreditProfile($user);
-                return $analysis['financial_advice']
-                    ?? 'Kelola keuangan Anda dengan bijak dan hindari utang konsumtif berlebih.';
-            }
-        );
+        // 1. Cek cache (5 menit)
+        if (Cache::has($cacheKey)) {
+            return response()->json([
+                'advice' => Cache::get($cacheKey),
+            ]);
+        }
 
-        return response()->json([
-            'advice' => $advice,
-        ]);
+        // 2. Tutup session agar request tidak blocking
+        Session::save();
+        session_write_close();
+
+        try {
+            // 3. Proses analisis AI (berat)
+            $analysis = $this->geminiService->analyzeCreditProfile($user);
+            $advice   = $analysis['financial_advice']
+                ?? 'Tetap jaga kesehatan finansial Anda dengan bijak.';
+
+            // 4. Simpan cache (300 detik)
+            Cache::put($cacheKey, $advice, 300);
+
+            return response()->json(['advice' => $advice]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'advice' => 'Layanan AI sedang sibuk, silakan coba beberapa saat lagi.'
+            ], 500);
+        }
     }
 }

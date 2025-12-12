@@ -23,7 +23,10 @@
         <label for="password" class="form-label fw-bold small text-uppercase text-muted">Kata Sandi</label>
         <div class="input-group">
             <span class="input-group-text bg-white border-end-0"><i class="fas fa-lock text-muted"></i></span>
-            <input type="password" name="password" class="form-control border-start-0 ps-0" id="password" placeholder="********" required>
+            <input type="password" name="password" class="form-control border-start-0 border-end-0 ps-0" id="password" placeholder="********" required>
+            <span class="input-group-text bg-white border-start-0" style="cursor: pointer;" onclick="togglePassword()">
+                <i class="fas fa-eye text-muted" id="toggleIcon"></i>
+            </span>
         </div>
     </div>
 
@@ -37,4 +40,23 @@
         <p class="mb-0 text-muted">Belum punya akun? <a href="{{ route('register') }}" class="text-finvera fw-bold text-decoration-none">Daftar di sini</a></p>
     </div>
 </form>
+
+@push('scripts')
+<script>
+    function togglePassword() {
+        const passwordField = document.getElementById('password');
+        const toggleIcon = document.getElementById('toggleIcon');
+
+        if (passwordField.type === 'password') {
+            passwordField.type = 'text';
+            toggleIcon.classList.remove('fa-eye');
+            toggleIcon.classList.add('fa-eye-slash');
+        } else {
+            passwordField.type = 'password';
+            toggleIcon.classList.remove('fa-eye-slash');
+            toggleIcon.classList.add('fa-eye');
+        }
+    }
+</script>
+@endpush
 @endsection

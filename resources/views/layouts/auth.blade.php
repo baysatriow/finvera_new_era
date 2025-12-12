@@ -23,7 +23,7 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f8f9fa;
-            padding-top: 80px; /* Space for fixed navbar */
+            padding-top: 80px;
         }
         .text-finvera { color: var(--finvera-primary); }
         .bg-finvera { background-color: var(--finvera-primary); }
@@ -87,7 +87,6 @@
 </head>
 <body>
 
-    <!-- Navbar Header (Konsisten dengan Landing Page) -->
     <nav class="navbar navbar-expand-lg fixed-top">
         <div class="container">
             <a class="navbar-brand fw-bold fs-4 text-finvera" href="{{ url('/') }}">
@@ -99,17 +98,14 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav mx-auto">
                     <li class="nav-item"><a class="nav-link" href="{{ url('/') }}">Beranda</a></li>
-                    <!-- Link anchor diarahkan ke URL root agar berfungsi dari halaman auth -->
                     <li class="nav-item"><a class="nav-link" href="{{ url('/#tentang') }}">Tentang Kami</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url('/#produk') }}">Produk</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url('/#kontak') }}">Kontak</a></li>
                 </ul>
                 <div class="d-flex gap-2">
-                    <!-- Sembunyikan tombol login jika sedang di halaman login -->
                     @if(!request()->routeIs('login'))
                         <a href="{{ route('login') }}" class="btn btn-outline-finvera">Masuk</a>
                     @endif
-                    <!-- Sembunyikan tombol daftar jika sedang di halaman daftar -->
                     @if(!request()->routeIs('register'))
                         <a href="{{ route('register') }}" class="btn btn-finvera">Daftar</a>
                     @endif
@@ -155,7 +151,6 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
-        // Global SweetAlert Handler untuk Flash Messages
         @if(session('success'))
             Swal.fire({ icon: 'success', title: 'Berhasil!', text: "{{ session('success') }}", confirmButtonColor: '#3A6D48' });
         @endif
