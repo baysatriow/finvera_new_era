@@ -103,7 +103,6 @@ class AdminUserController extends Controller
         $data = [
             'name'        => $request->name,
             'email'       => $request->email,
-            'username'    => $request->username,
             'phone'       => $request->phone,
             'admin_level' => $request->admin_level,
         ];
