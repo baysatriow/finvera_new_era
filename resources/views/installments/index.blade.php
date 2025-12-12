@@ -78,7 +78,7 @@
                                 @if($ins->due_date->isToday())
                                     <small class="text-warning fw-bold">Hari Ini!</small>
                                 @else
-                                    <small class="text-muted">{{ $ins->due_date->diffForHumans() }}</small>
+                                    <small class="text-muted">{{ $ins->due_date->locale('id')->diffForHumans() }}</small>
                                 @endif
                             @endif
                         </td>
@@ -143,6 +143,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     $(document).ready(function() {
+        // Init DataTables
         $('#installmentsTable').DataTable({
             language: {
                 search: "Cari:",
@@ -192,6 +193,7 @@
                             Swal.showLoading();
                         }
                     });
+
                     document.getElementById(formId).submit();
                 }
             });
