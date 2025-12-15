@@ -1,6 +1,6 @@
 @extends('layouts.dashboard')
 
-@section('page_title', 'Cicilan Saya')
+@section('page_title', 'Tagihan Saya')
 
 @section('content')
 <!-- DataTables CSS -->
@@ -45,8 +45,8 @@
 
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-header bg-white py-4 px-4 border-bottom-0">
-        <h5 class="fw-bold mb-0 text-dark">Jadwal Pembayaran Cicilan</h5>
-        <p class="text-muted small mb-0">Pantau jatuh tempo dan lakukan pembayaran tepat waktu.</p>
+        <h5 class="fw-bold mb-0 text-dark">Tagihan Cicilan Aktif</h5>
+        <p class="text-muted small mb-0">Daftar cicilan yang perlu segera dibayarkan.</p>
     </div>
 
     <div class="card-body p-4 pt-0">
@@ -66,13 +66,11 @@
                     @foreach($installments as $ins)
                     <tr>
                         <td class="ps-4">
-                            <span class="d-none">{{ $ins->due_date->format('Ymd') }}</span>
+                            <span class="d-none">{{ $ins->due_date->format('Ymd') }}</span> <!-- Helper Sorting -->
 
                             @if($ins->status == 'late')
                                 <div class="text-danger fw-bold">{{ $ins->due_date->format('d M Y') }}</div>
                                 <small class="text-danger"><i class="fas fa-exclamation-circle me-1"></i> Telat</small>
-                            @elseif($ins->status == 'paid')
-                                <div class="text-success fw-bold">{{ $ins->due_date->format('d M Y') }}</div>
                             @else
                                 <div class="text-dark fw-bold">{{ $ins->due_date->format('d M Y') }}</div>
                                 @if($ins->due_date->isToday())
@@ -97,35 +95,25 @@
                         <td>
                             @php
                                 $statusConfig = match($ins->status) {
-                                    'paid' => ['bg' => 'success', 'icon' => 'check-circle', 'text' => 'Lunas'],
                                     'late' => ['bg' => 'danger', 'icon' => 'exclamation-circle', 'text' => 'Terlambat'],
-                                    'pending' => ['bg' => 'secondary', 'icon' => 'clock', 'text' => 'Belum Bayar'],
+                                    'pending' => ['bg' => 'warning', 'icon' => 'clock', 'text' => 'Belum Bayar'],
+                                    'waiting' => ['bg' => 'info', 'icon' => 'hourglass-half', 'text' => 'Menunggu Verifikasi'],
                                     default => ['bg' => 'light', 'icon' => 'question', 'text' => ucfirst($ins->status)]
                                 };
-                                if($ins->status == 'pending') {
-                                    $statusConfig['bg'] = 'warning';
-                                    $statusConfig['text'] = 'Tagihan Aktif';
-                                }
                             @endphp
                             <span class="badge bg-{{ $statusConfig['bg'] }} bg-opacity-10 text-{{ $statusConfig['bg'] }} px-3 py-2 rounded-pill">
                                 <i class="fas fa-{{ $statusConfig['icon'] }} me-1"></i> {{ $statusConfig['text'] }}
                             </span>
                         </td>
                         <td class="text-end pe-4">
-                            @if($ins->status != 'paid')
-                                <form action="{{ route('installments.pay', $ins->id) }}" method="POST" id="pay-form-{{ $ins->id }}">
-                                    @csrf
-                                    <button type="button" class="btn btn-pay-solid btn-sm px-4 rounded-pill shadow-sm btn-pay-confirm"
-                                            data-form-id="pay-form-{{ $ins->id }}"
-                                            data-month="{{ $ins->installment_number }}"
-                                            data-amount="{{ number_format($ins->amount + $ins->tazir_amount, 0, ',', '.') }}">
-                                        Bayar Sekarang
-                                    </button>
-                                </form>
+                            @if($ins->status == 'waiting')
+                                <button class="btn btn-light btn-sm px-4 rounded-pill border text-muted" disabled>
+                                    <i class="fas fa-check me-1"></i> Dikirim
+                                </button>
                             @else
-                                <div class="text-success small fw-bold">
-                                    <i class="fas fa-check-double me-1"></i> Lunas pada {{ $ins->paid_at ? $ins->paid_at->format('d/m/y') : '-' }}
-                                </div>
+                                <a href="{{ route('installments.pay', $ins->id) }}" class="btn btn-pay-solid btn-sm px-4 rounded-pill shadow-sm">
+                                    Bayar Sekarang
+                                </a>
                             @endif
                         </td>
                     </tr>
@@ -140,63 +128,26 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     $(document).ready(function() {
-        // Init DataTables
         $('#installmentsTable').DataTable({
             language: {
                 search: "Cari:",
                 lengthMenu: "Tampilkan _MENU_ data",
                 info: "Menampilkan _START_ sampai _END_ dari _TOTAL_ data",
-                infoEmpty: "Tidak ada tagihan",
+                infoEmpty: "Tidak ada tagihan aktif",
                 paginate: {
                     first: "Awal",
                     last: "Akhir",
                     next: "&raquo;",
                     previous: "&laquo;"
                 },
-                zeroRecords: "Belum ada riwayat cicilan."
+                zeroRecords: "Hore! Tidak ada tagihan cicilan aktif saat ini."
             },
-            order: [[ 0, "asc" ]],
+            order: [[ 0, "asc" ]], // Urutkan berdasarkan tanggal jatuh tempo terdekat
             columnDefs: [
                 { orderable: false, targets: 5 }
             ]
-        });
-
-        $('#installmentsTable').on('click', '.btn-pay-confirm', function() {
-            const formId = $(this).data('form-id');
-            const month = $(this).data('month');
-            const amount = $(this).data('amount');
-
-            Swal.fire({
-                title: 'Konfirmasi Pembayaran',
-                html: `
-                    <div class="mb-3">Anda akan membayar cicilan ke-<strong>${month}</strong></div>
-                    <h2 class="text-success fw-bold">Rp ${amount}</h2>
-                    <small class="text-muted">Pastikan saldo Anda mencukupi untuk simulasi ini.</small>
-                `,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#3A6D48',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Ya, Bayar Sekarang!',
-                cancelButtonText: 'Batal',
-                reverseButtons: true
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    Swal.fire({
-                        title: 'Memproses Pembayaran...',
-                        text: 'Mohon tunggu sebentar',
-                        allowOutsideClick: false,
-                        didOpen: () => {
-                            Swal.showLoading();
-                        }
-                    });
-
-                    document.getElementById(formId).submit();
-                }
-            });
         });
     });
 </script>

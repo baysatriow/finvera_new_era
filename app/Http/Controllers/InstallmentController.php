@@ -2,100 +2,153 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CompanyBankAccount;
 use App\Models\Installment;
-use App\Models\Loan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class InstallmentController extends Controller
 {
-    /* ============================================================
-     * INDEX — LIST CICILAN USER (AKTIF & RIWAYAT)
-     * ============================================================ */
+    /**
+     * ============================================================
+     * LANDING PAGE — DAFTAR CICILAN BELUM LUNAS
+     * ============================================================
+     */
     public function index()
     {
         $installments = Installment::whereHas('loan', function ($query) {
                 $query->where('user_id', Auth::id());
             })
+            ->where('status', '!=', 'paid')
             ->with(['loan'])
-            ->orderByRaw("FIELD(status, 'late', 'pending', 'paid')")
+            ->orderByRaw("FIELD(status, 'late', 'pending', 'waiting')")
             ->orderBy('due_date', 'asc')
             ->get();
 
         return view('installments.index', compact('installments'));
     }
 
-    /* ============================================================
-     * PAY — PROSES PEMBAYARAN CICILAN
-     * ============================================================ */
-    public function pay(Request $request, $id)
+    /**
+     * ============================================================
+     * PAYMENT PAGE — HALAMAN PEMBAYARAN CICILAN
+     * ============================================================
+     */
+    public function showPaymentPage($id)
     {
-        $installment = Installment::with('loan')->findOrFail($id);
+        $installment = Installment::with('loan')
+            ->findOrFail($id);
 
-        // Validasi kepemilikan
+        /**
+         * ------------------------------------------------------------
+         * VALIDASI KEPEMILIKAN & STATUS
+         * ------------------------------------------------------------
+         */
         if ($installment->loan->user_id !== Auth::id()) {
             abort(403);
         }
 
-        // Jika sudah lunas
         if ($installment->status === 'paid') {
-            return back()->with('info', 'Cicilan ini sudah lunas.');
+            return redirect()
+                ->route('installments.index')
+                ->with('info', 'Cicilan ini sudah lunas.');
         }
 
-        // Harus bayar cicilan berurutan
-        $hasPreviousUnpaid = Installment::where('loan_id', $installment->loan_id)
-            ->where('installment_number', '<', $installment->installment_number)
-            ->where('status', '!=', 'paid')
-            ->exists();
+        /**
+         * ------------------------------------------------------------
+         * AMBIL REKENING PERUSAHAAN AKTIF
+         * ------------------------------------------------------------
+         */
+        $adminBanks = CompanyBankAccount::where('is_active', true)->get();
 
-        if ($hasPreviousUnpaid) {
-            return back()->with('error', 'Harap lunasi cicilan bulan sebelumnya terlebih dahulu.');
+        return view('installments.pay', compact('installment', 'adminBanks'));
+    }
+
+    /**
+     * ============================================================
+     * SUBMIT PAYMENT — UPLOAD BUKTI PEMBAYARAN
+     * ============================================================
+     */
+    public function submitPayment(Request $request, $id)
+    {
+        /**
+         * ------------------------------------------------------------
+         * VALIDASI INPUT
+         * ------------------------------------------------------------
+         */
+        $request->validate([
+            'proof_file' => 'required|image|mimes:jpeg,png,jpg,pdf|max:5120',
+        ], [
+            'proof_file.required' => 'Bukti transfer wajib diunggah.',
+            'proof_file.image'    => 'File harus berupa gambar.',
+            'proof_file.max'      => 'Ukuran file maksimal 5MB.',
+        ]);
+
+        $installment = Installment::findOrFail($id);
+
+        /**
+         * ------------------------------------------------------------
+         * VALIDASI KEPEMILIKAN DATA
+         * ------------------------------------------------------------
+         */
+        if ($installment->loan->user_id !== Auth::id()) {
+            abort(403);
         }
 
         DB::beginTransaction();
 
         try {
-            /* ---------------------------
-             * 1. Tandai cicilan sebagai lunas
-             * --------------------------- */
-            $installment->update([
-                'status'     => 'paid',
-                'paid_at'    => now(),
-                'total_paid' => $installment->amount + $installment->tazir_amount,
-            ]);
+            /**
+             * --------------------------------------------------------
+             * PROSES UPLOAD FILE
+             * --------------------------------------------------------
+             */
+            if ($request->hasFile('proof_file')) {
+                $path = $request->file('proof_file')
+                    ->store('payments', 'public');
 
-            /* ---------------------------
-             * 2. Kurangi sisa hutang pada loan
-             * --------------------------- */
-            $loan = $installment->loan;
-            $loan->remaining_balance -= $installment->amount;
+                if (!$path) {
+                    throw new \Exception('Gagal menyimpan file bukti pembayaran.');
+                }
 
-            // Jika sisa hutang kecil, dianggap lunas
-            if ($loan->remaining_balance <= 100) {
-                $loan->remaining_balance = 0;
-                $loan->status = 'paid';
+                /**
+                 * ----------------------------------------------------
+                 * UPDATE DATA CICILAN
+                 * ----------------------------------------------------
+                 */
+                $installment->update([
+                    'status'      => 'waiting',
+                    'proof_path'  => $path,
+                    'paid_at'     => now(),
+                ]);
+
+                DB::commit();
+
+                return redirect()
+                    ->route('installments.index')
+                    ->with('success', 'Bukti pembayaran berhasil dikirim. Menunggu verifikasi Admin.');
             }
 
-            $loan->save();
+            return back()->with('error', 'File bukti pembayaran tidak ditemukan.');
 
-            DB::commit();
+        } catch (\Exception $e) {
 
-            /* ---------------------------
-             * 3. Response UI
-             * --------------------------- */
-            if ($loan->status === 'paid') {
-                return back()->with('success', 'Alhamdulillah! Seluruh pinjaman Anda telah lunas.');
+            DB::rollBack();
+
+            /**
+             * --------------------------------------------------------
+             * CLEANUP FILE JIKA GAGAL
+             * --------------------------------------------------------
+             */
+            if (isset($path)) {
+                Storage::disk('public')->delete($path);
             }
 
             return back()->with(
-                'success',
-                'Pembayaran cicilan ke-' . $installment->installment_number . ' berhasil diterima.'
+                'error',
+                'Terjadi kesalahan sistem: ' . $e->getMessage()
             );
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Gagal memproses pembayaran: ' . $e->getMessage());
         }
     }
 }

@@ -20,7 +20,8 @@ class Installment extends Model
         'tazir_amount',     // Denda sosial
         'tawidh_amount',    // Ganti rugi
         'total_paid',
-        'status',           // pending, paid, late
+        'status',
+        'proof_path',
         'paid_at',
     ];
 

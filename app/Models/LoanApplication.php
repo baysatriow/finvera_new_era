@@ -23,6 +23,7 @@ class LoanApplication extends Model
         'asset_value',
         'status',              // pending, approved, rejected, canceled
         'ai_score',
+        'ai_user_message',
         'admin_note',
         'reviewed_at',
     ];

@@ -65,21 +65,9 @@
             <p class="text-muted small mb-0">Semua riwayat pengajuan dan status pembayaran Anda.</p>
         </div>
 
-        @php
-            $hasActiveLoan = \App\Models\LoanApplication::where('user_id', Auth::id())
-                ->whereIn('status', ['pending', 'approved', 'active'])
-                ->exists();
-        @endphp
-
-        @if($hasActiveLoan)
-            <button type="button" class="btn btn-disabled-custom rounded-pill px-4 shadow-sm fw-bold" onclick="Swal.fire('Info', 'Anda memiliki pinjaman aktif atau dalam proses. Mohon selesaikan terlebih dahulu.', 'info')">
-                <i class="fas fa-plus me-2"></i> Ajukan Baru
-            </button>
-        @else
-            <a href="{{ route('loans.create') }}" class="btn btn-finvera-solid rounded-pill px-4 shadow-sm fw-bold">
-                <i class="fas fa-plus me-2"></i> Ajukan Baru
-            </a>
-        @endif
+        <a href="{{ route('loans.create') }}" class="btn btn-finvera-solid rounded-pill px-4 shadow-sm fw-bold">
+            <i class="fas fa-plus me-2"></i> Ajukan Baru
+        </a>
     </div>
 
     <div class="card-body p-4 pt-0">

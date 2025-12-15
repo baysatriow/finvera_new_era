@@ -57,12 +57,32 @@
         border-radius: 8px;
         border: 1px solid #eee;
     }
+    .btn-back-custom {
+        background-color: white;
+        border: 1px solid #dee2e6;
+        color: #495057;
+        padding: 10px 24px;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .btn-back-custom:hover {
+        background-color: #f8f9fa;
+        color: #3A6D48;
+        border-color: #3A6D48;
+        transform: translateX(-3px);
+    }
 </style>
 @endpush
 
 <div class="row g-4">
     <div class="col-12">
-        <a href="{{ route('admin.borrowers.index') }}" class="text-decoration-none text-muted fw-bold small">
+        <a href="{{ route('admin.borrowers.index') }}" class="btn-back-custom">
             <i class="fas fa-arrow-left me-1"></i> Kembali ke Daftar
         </a>
     </div>

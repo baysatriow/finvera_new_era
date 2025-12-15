@@ -172,7 +172,9 @@
                 <a href="{{ route('admin.applications') }}" class="nav-link {{ request()->routeIs('admin.applications*') ? 'active' : '' }}">
                     <i class="fas fa-file-contract"></i> Persetujuan Pinjaman
                 </a>
-
+                <a href="{{ route('admin.payments.index') }}" class="nav-link {{ request()->routeIs('admin.payments.*') ? 'active' : '' }}">
+                    <i class="fas fa-receipt"></i> Konfirmasi Pembayaran
+                </a>
                 <div class="menu-label">Manajemen</div>
                 <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
                     <i class="fas fa-users"></i> Manajemen User
@@ -185,6 +187,9 @@
                 </a>
                 <a href="{{ route('admin.reports.index') }}" class="nav-link {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
                     <i class="fas fa-chart-bar"></i> Laporan
+                </a>
+                <a href="{{ route('admin.banks.index') }}" class="nav-link {{ request()->routeIs('admin.banks.*') ? 'active' : '' }}">
+                    <i class="fas fa-university"></i> Rekening Perusahaan
                 </a>
                 <a href="{{ route('admin.notifications.index') }}" class="nav-link {{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}">
                     <i class="fas fa-bell"></i> Kelola Notifikasi
