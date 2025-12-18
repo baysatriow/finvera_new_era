@@ -4,6 +4,7 @@
 
 @section('content')
 <style>
+    /* Styling List Notifikasi Modern */
     .notif-card {
         transition: all 0.2s ease-in-out;
         border: 1px solid #f0f0f0;
@@ -14,12 +15,14 @@
     }
     .notif-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
         border-color: #3A6D48;
-        z-index: 1;
+        z-index: 10;
     }
+
+    /* Styling Status Baca */
     .notif-card.unread {
-        background-color: #f8fffa;
+        background-color: #f0fdf4;
         border-left: 4px solid #3A6D48;
     }
     .notif-card.read {
@@ -27,6 +30,7 @@
         opacity: 0.95;
         border-left: 4px solid transparent;
     }
+
     .notif-icon-box {
         width: 48px;
         height: 48px;
@@ -36,16 +40,53 @@
         border-radius: 12px;
         flex-shrink: 0;
     }
+
     .scrollable-list {
-        max-height: 75vh;
+        max-height: 680px;
         overflow-y: auto;
-        padding: 5px;
+        padding: 10px 15px;
+        margin: -10px -15px;
     }
     .scrollable-list::-webkit-scrollbar { width: 5px; }
-    .scrollable-list::-webkit-scrollbar-thumb { background-color: #ddd; border-radius: 4px; }
+    .scrollable-list::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 4px; }
+
+    /* --- FIX PAGINATION STYLE --- */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 5px;
+    }
+    .page-item .page-link {
+        color: #3A6D48;
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #dee2e6;
+        margin: 0 2px;
+    }
+    .page-item.active .page-link {
+        background-color: #3A6D48;
+        border-color: #3A6D48;
+        color: white;
+    }
+    .page-item.disabled .page-link {
+        color: #6c757d;
+        pointer-events: none;
+        background-color: #fff;
+        border-color: #dee2e6;
+    }
+    .page-link:hover {
+        background-color: #f8f9fa;
+        color: #2c5236;
+        text-decoration: none;
+    }
 </style>
 
-<div class="row">
+<div class="row justify-content-center">
+    <!-- Mengembalikan ukuran kolom ke col-12 agar lebar penuh dekat sidebar -->
     <div class="col-12">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
@@ -65,19 +106,24 @@
                 <div class="scrollable-list">
                     <div class="d-flex flex-column gap-3">
                         @forelse($notifications as $notification)
+                            <!-- FIX ROUTE: Menggunakan notifications.show -->
                             <a href="{{ route('notifications.show', $notification->id) }}" class="text-decoration-none text-dark">
                                 <div class="card notif-card rounded-4 p-3 {{ $notification->read_at ? 'read' : 'unread' }}">
                                     <div class="d-flex align-items-start gap-3">
+
+                                        <!-- Icon -->
                                         <div class="notif-icon-box text-white bg-{{ $notification->data['type'] ?? 'primary' }}">
                                             <i class="fas fa-{{ $notification->data['icon'] ?? 'info' }} fs-5"></i>
                                         </div>
 
+                                        <!-- Content -->
                                         <div class="flex-grow-1 overflow-hidden">
                                             <div class="d-flex w-100 justify-content-between align-items-center mb-1">
                                                 <h6 class="mb-0 fw-bold {{ $notification->read_at ? 'text-secondary' : 'text-dark' }}">
                                                     {{ $notification->data['title'] }}
                                                 </h6>
                                                 <small class="text-muted" style="font-size: 0.75rem;">
+                                                    <!-- Waktu Bahasa Indonesia -->
                                                     {{ $notification->created_at->locale('id')->diffForHumans() }}
                                                 </small>
                                             </div>
@@ -86,6 +132,7 @@
                                             </p>
                                         </div>
 
+                                        <!-- Status Indicator -->
                                         <div class="align-self-center">
                                             @if(!$notification->read_at)
                                                 <div class="bg-success rounded-circle" style="width: 10px; height: 10px;" title="Belum Dibaca"></div>
@@ -110,7 +157,8 @@
 
                 @if($notifications->hasPages())
                     <div class="mt-4 d-flex justify-content-center">
-                        {{ $notifications->links() }}
+                        <!-- Memaksa styling bootstrap 5 pagination -->
+                        {{ $notifications->links('pagination::bootstrap-5') }}
                     </div>
                 @endif
             </div>

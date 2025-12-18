@@ -156,43 +156,49 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Approve
-        $('.btn-approve-page').click(function() {
-            Swal.fire({
-                title: 'Konfirmasi Terima',
-                text: "Status cicilan akan berubah menjadi Lunas.",
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#198754',
-                confirmButtonText: 'Ya, Terima'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    Swal.showLoading();
-                    document.getElementById('approve-form-page').submit();
-                }
+        const btnApprove = document.querySelector('.btn-approve-page');
+        if(btnApprove){
+            btnApprove.addEventListener('click', function() {
+                Swal.fire({
+                    title: 'Konfirmasi Terima',
+                    text: "Status cicilan akan berubah menjadi Lunas.",
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#198754',
+                    confirmButtonText: 'Ya, Terima'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        Swal.fire({title: 'Memproses...', didOpen: () => Swal.showLoading()});
+                        document.getElementById('approve-form-page').submit();
+                    }
+                });
             });
-        });
+        }
 
         // Reject
-        $('.btn-reject-page').click(function() {
-            Swal.fire({
-                title: 'Tolak Bukti',
-                text: "Alasan penolakan:",
-                input: 'text',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#dc3545',
-                confirmButtonText: 'Tolak',
-                inputValidator: (value) => {
-                    if (!value) return 'Wajib isi alasan!'
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    document.getElementById('reject-reason-page').value = result.value;
-                    Swal.showLoading();
-                    document.getElementById('reject-form-page').submit();
-                }
+        const btnReject = document.querySelector('.btn-reject-page');
+        if(btnReject){
+            btnReject.addEventListener('click', function() {
+                Swal.fire({
+                    title: 'Tolak Bukti',
+                    text: "Alasan penolakan:",
+                    input: 'text',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    confirmButtonText: 'Tolak',
+                    inputValidator: (value) => {
+                        if (!value) return 'Wajib isi alasan!'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        document.getElementById('reject-reason-page').value = result.value;
+                        Swal.fire({title: 'Menolak...', didOpen: () => Swal.showLoading()});
+                        document.getElementById('reject-form-page').submit();
+                    }
+                });
             });
-        });
+        }
     });
 </script>
 @endpush

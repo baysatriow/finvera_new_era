@@ -7,37 +7,39 @@
 @push('styles')
 <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 <style>
-    /* Styling Tombol Aksi */
-    .btn-action {
-        width: 38px;
-        height: 38px;
+    /* Styling Tombol Aksi Solid & Bulat */
+    .btn-action-icon {
+        width: 36px;
+        height: 36px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 12px;
+        border-radius: 50%;
         transition: all 0.2s;
         border: none;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        color: white;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
-    .btn-action:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+    .btn-action-icon:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        color: white;
+        filter: brightness(1.1);
+    }
 
-    .btn-approve { background-color: #198754; color: white; } /* Hijau Solid */
-    .btn-approve:hover { background-color: #157347; color: white; }
+    /* Warna Spesifik */
+    .btn-approve { background-color: #198754; }
+    .btn-reject { background-color: #dc3545; }
+    .btn-detail { background-color: #0d6efd; }
 
-    .btn-reject { background-color: #dc3545; color: white; } /* Merah Solid */
-    .btn-reject:hover { background-color: #bb2d3b; color: white; }
-
-    .btn-detail { background-color: #0d6efd; color: white; } /* Biru Solid */
-    .btn-detail:hover { background-color: #0b5ed7; color: white; }
-
-    /* Tombol Lihat Foto */
+    /* Tombol Lihat Foto yang Jelas */
     .btn-view-proof {
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        color: #333;
-        font-size: 0.8rem;
-        font-weight: 600;
-        padding: 6px 12px;
+        background-color: #e7f1ff;
+        color: #0d6efd;
+        border: 1px solid #b6d4fe;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 6px 14px;
         border-radius: 50px;
         transition: all 0.2s;
         text-decoration: none;
@@ -46,9 +48,11 @@
         gap: 6px;
     }
     .btn-view-proof:hover {
-        background-color: #e9ecef;
-        color: #000;
-        border-color: #ced4da;
+        background-color: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 5px rgba(13, 110, 253, 0.2);
     }
 
     /* Layout Table */
@@ -111,7 +115,7 @@
                         <td>
                             @if($pay->proof_path)
                                 <a href="{{ asset('storage/' . $pay->proof_path) }}" target="_blank" class="btn-view-proof">
-                                    <i class="fas fa-image text-primary"></i> Lihat Foto
+                                    <i class="fas fa-image"></i> Lihat Bukti
                                 </a>
                             @else
                                 <span class="text-muted small fst-italic">Tidak ada bukti</span>
@@ -119,23 +123,23 @@
                         </td>
                         <td class="text-end pe-4">
                             <div class="d-flex justify-content-end gap-2">
-                                <!-- Tombol Reject -->
-                                <button type="button" class="btn-action btn-reject btn-reject-action"
-                                        data-id="{{ $pay->id }}" title="Tolak">
+                                <!-- Tombol Reject (Merah) -->
+                                <button type="button" class="btn-action-icon btn-reject btn-reject-action"
+                                        data-id="{{ $pay->id }}" title="Tolak Pembayaran">
                                     <i class="fas fa-times"></i>
                                 </button>
 
-                                <!-- Tombol Approve -->
+                                <!-- Tombol Approve (Hijau) -->
                                 <form action="{{ route('admin.payments.approve', $pay->id) }}" method="POST" id="approve-form-{{ $pay->id }}">
                                     @csrf
-                                    <button type="button" class="btn-action btn-approve btn-approve-action"
-                                            data-id="{{ $pay->id }}" data-amount="{{ number_format($pay->amount, 0, ',', '.') }}" title="Terima">
+                                    <button type="button" class="btn-action-icon btn-approve btn-approve-action"
+                                            data-id="{{ $pay->id }}" data-amount="{{ number_format($pay->amount, 0, ',', '.') }}" title="Terima Pembayaran">
                                         <i class="fas fa-check"></i>
                                     </button>
                                 </form>
 
-                                <!-- Tombol Detail -->
-                                <a href="{{ route('admin.payments.show', $pay->id) }}" class="btn-action btn-detail" title="Detail Lengkap">
+                                <!-- Tombol Detail (Biru) -->
+                                <a href="{{ route('admin.payments.show', $pay->id) }}" class="btn-action-icon btn-detail" title="Detail Lengkap">
                                     <i class="fas fa-arrow-right"></i>
                                 </a>
                             </div>
@@ -164,12 +168,12 @@
         $('#paymentsTable').DataTable({
             language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/id.json' },
             order: [[ 0, "asc" ]], // Urutkan tanggal bayar terlama (paling urgent)
-            columnDefs: [{ orderable: false, targets: 4 }] // Kolom Aksi & Bukti tidak disort
+            columnDefs: [{ orderable: false, targets: 4 }]
         });
 
         // Handler Approve
         $('.btn-approve-action').click(function(e) {
-            e.preventDefault(); // Prevent form submit default
+            e.preventDefault();
             const id = $(this).data('id');
             const amount = $(this).data('amount');
 
@@ -194,7 +198,7 @@
         $('.btn-reject-action').click(function() {
             const id = $(this).data('id');
             const form = document.getElementById('reject-form-global');
-            form.action = `/admin/payments/${id}/reject`; // Set action URL dinamis
+            form.action = `/admin/payments/${id}/reject`;
 
             Swal.fire({
                 title: 'Tolak Pembayaran',

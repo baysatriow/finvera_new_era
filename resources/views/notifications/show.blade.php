@@ -71,11 +71,12 @@
                             </a>
                         @endif
 
-                        {{-- @if($hasTargetUrl)
-                            <a href="{{ $notification->data['url'] }}" class="btn btn-success fw-bold rounded-pill px-4 py-2 shadow-sm">
+                        @if($hasTargetUrl && $notification->data['url'] !== url('/dashboard'))
+                            <a href="{{ $notification->data['url'] }}"
+                            class="btn btn-success fw-bold rounded-pill px-4 py-2 shadow-sm">
                                 Buka Tautan <i class="fas fa-external-link-alt ms-2"></i>
                             </a>
-                        @endif --}}
+                        @endif
                     </div>
 
                 </div>

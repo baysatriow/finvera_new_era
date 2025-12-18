@@ -13,7 +13,7 @@ class InstallmentController extends Controller
 {
     /**
      * ============================================================
-     * LANDING PAGE — DAFTAR CICILAN BELUM LUNAS
+     * INDEX — DAFTAR CICILAN USER
      * ============================================================
      */
     public function index()
@@ -23,7 +23,8 @@ class InstallmentController extends Controller
             })
             ->where('status', '!=', 'paid')
             ->with(['loan'])
-            ->orderByRaw("FIELD(status, 'late', 'pending', 'waiting')")
+            // Prioritas: Failed → Late → Waiting → Pending
+            ->orderByRaw("FIELD(status, 'failed', 'late', 'waiting', 'pending')")
             ->orderBy('due_date', 'asc')
             ->get();
 
@@ -32,7 +33,7 @@ class InstallmentController extends Controller
 
     /**
      * ============================================================
-     * PAYMENT PAGE — HALAMAN PEMBAYARAN CICILAN
+     * SHOW — HALAMAN PEMBAYARAN CICILAN
      * ============================================================
      */
     public function showPaymentPage($id)
@@ -41,14 +42,19 @@ class InstallmentController extends Controller
             ->findOrFail($id);
 
         /**
-         * ------------------------------------------------------------
-         * VALIDASI KEPEMILIKAN & STATUS
-         * ------------------------------------------------------------
+         * --------------------------------------------------------
+         * AUTHORIZATION
+         * --------------------------------------------------------
          */
         if ($installment->loan->user_id !== Auth::id()) {
             abort(403);
         }
 
+        /**
+         * --------------------------------------------------------
+         * VALIDASI STATUS
+         * --------------------------------------------------------
+         */
         if ($installment->status === 'paid') {
             return redirect()
                 ->route('installments.index')
@@ -56,9 +62,9 @@ class InstallmentController extends Controller
         }
 
         /**
-         * ------------------------------------------------------------
-         * AMBIL REKENING PERUSAHAAN AKTIF
-         * ------------------------------------------------------------
+         * --------------------------------------------------------
+         * DATA REKENING PERUSAHAAN
+         * --------------------------------------------------------
          */
         $adminBanks = CompanyBankAccount::where('is_active', true)->get();
 
@@ -67,30 +73,26 @@ class InstallmentController extends Controller
 
     /**
      * ============================================================
-     * SUBMIT PAYMENT — UPLOAD BUKTI PEMBAYARAN
+     * STORE — SUBMIT / UPLOAD BUKTI PEMBAYARAN
      * ============================================================
      */
     public function submitPayment(Request $request, $id)
     {
         /**
-         * ------------------------------------------------------------
+         * --------------------------------------------------------
          * VALIDASI INPUT
-         * ------------------------------------------------------------
+         * --------------------------------------------------------
          */
         $request->validate([
             'proof_file' => 'required|image|mimes:jpeg,png,jpg,pdf|max:5120',
-        ], [
-            'proof_file.required' => 'Bukti transfer wajib diunggah.',
-            'proof_file.image'    => 'File harus berupa gambar.',
-            'proof_file.max'      => 'Ukuran file maksimal 5MB.',
         ]);
 
         $installment = Installment::findOrFail($id);
 
         /**
-         * ------------------------------------------------------------
-         * VALIDASI KEPEMILIKAN DATA
-         * ------------------------------------------------------------
+         * --------------------------------------------------------
+         * AUTHORIZATION
+         * --------------------------------------------------------
          */
         if ($installment->loan->user_id !== Auth::id()) {
             abort(403);
@@ -99,28 +101,32 @@ class InstallmentController extends Controller
         DB::beginTransaction();
 
         try {
+
             /**
              * --------------------------------------------------------
-             * PROSES UPLOAD FILE
+             * UPLOAD & SIMPAN BUKTI PEMBAYARAN
              * --------------------------------------------------------
              */
             if ($request->hasFile('proof_file')) {
+
+                // Hapus file lama (jika sebelumnya ditolak)
+                if ($installment->proof_path) {
+                    Storage::disk('public')->delete($installment->proof_path);
+                }
+
                 $path = $request->file('proof_file')
                     ->store('payments', 'public');
 
-                if (!$path) {
-                    throw new \Exception('Gagal menyimpan file bukti pembayaran.');
-                }
-
                 /**
                  * ----------------------------------------------------
-                 * UPDATE DATA CICILAN
+                 * UPDATE STATUS CICILAN
                  * ----------------------------------------------------
                  */
                 $installment->update([
-                    'status'      => 'waiting',
-                    'proof_path'  => $path,
-                    'paid_at'     => now(),
+                    'status'             => 'waiting',
+                    'proof_path'         => $path,
+                    'paid_at'            => now(),
+                    'rejection_reason'   => null,
                 ]);
 
                 DB::commit();
@@ -130,24 +136,15 @@ class InstallmentController extends Controller
                     ->with('success', 'Bukti pembayaran berhasil dikirim. Menunggu verifikasi Admin.');
             }
 
-            return back()->with('error', 'File bukti pembayaran tidak ditemukan.');
+            return back()->with('error', 'File bukti pembayaran wajib diunggah.');
 
         } catch (\Exception $e) {
 
-            DB::rollBack();
-
-            /**
-             * --------------------------------------------------------
-             * CLEANUP FILE JIKA GAGAL
-             * --------------------------------------------------------
-             */
-            if (isset($path)) {
-                Storage::disk('public')->delete($path);
-            }
+            DB::rollback();
 
             return back()->with(
                 'error',
-                'Terjadi kesalahan sistem: ' . $e->getMessage()
+                'Gagal mengunggah bukti pembayaran: ' . $e->getMessage()
             );
         }
     }

@@ -6,6 +6,24 @@
 @push('styles')
 <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 <style>
+    /* Card Styles */
+    .detail-card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+        background: white;
+        margin-bottom: 24px;
+        overflow: hidden;
+    }
+    .card-header-custom {
+        background-color: #fff;
+        padding: 20px 24px;
+        border-bottom: 1px solid #f0f0f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
     /* Foto Aset Center & Contain */
     .doc-img-container {
         height: 180px;
@@ -46,7 +64,7 @@
     }
     .doc-img-container:hover .doc-overlay-btn { opacity: 1; }
 
-    /* Button Outline Fix */
+    /* Button Styles */
     .btn-outline-custom {
         border: 1px solid #3A6D48;
         color: #3A6D48;
@@ -66,10 +84,10 @@
         border-radius: 50px;
         font-weight: 600;
         font-size: 0.9rem;
-        transition: all 0.2s;
         text-decoration: none;
         display: inline-flex;
         align-items: center;
+        transition: all 0.2s;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     .btn-back-custom:hover {
@@ -85,7 +103,7 @@
     <!-- Header Back Button -->
     <div class="col-12">
         <a href="{{ route('admin.disbursement.index') }}" class="btn-back-custom">
-            <i class="fas fa-arrow-left me-1"></i> Kembali ke Daftar
+            <i class="fas fa-arrow-left me-2"></i> Kembali ke Monitoring
         </a>
     </div>
 
@@ -128,11 +146,11 @@
 
     <!-- INFO PEMINJAM & ASET -->
     <div class="col-md-4">
-        <div class="card border-0 shadow-sm rounded-4 mb-4">
-            <div class="card-header bg-white py-3 px-4 border-bottom-0">
+        <div class="card detail-card">
+            <div class="card-header-custom">
                 <h6 class="fw-bold mb-0 text-dark">Informasi Peminjam</h6>
             </div>
-            <div class="card-body p-4 pt-0">
+            <div class="card-body p-4">
                 <div class="d-flex align-items-center mb-4">
                     <div class="bg-light rounded-circle p-3 me-3 text-finvera fw-bold fs-4" style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
                         {{ substr($loan->user->name, 0, 1) }}
@@ -159,7 +177,7 @@
                 </ul>
 
                 <div class="d-grid">
-                    <a href="{{ route('admin.borrowers.show', $loan->user_id) }}" class="btn btn-outline-custom btn-sm rounded-pill fw-bold py-2">
+                    <a href="{{ route('admin.borrowers.show', $loan->user_id) }}" target="_blank" class="btn btn-outline-custom btn-sm rounded-pill fw-bold py-2">
                         Lihat Profil Lengkap <i class="fas fa-arrow-right ms-1"></i>
                     </a>
                 </div>
@@ -167,11 +185,11 @@
         </div>
 
         <!-- Asset Preview -->
-        <div class="card border-0 shadow-sm rounded-4">
-            <div class="card-header bg-white py-3 px-4 border-bottom-0">
+        <div class="card detail-card">
+            <div class="card-header-custom">
                 <h6 class="fw-bold mb-0 text-dark">Aset Jaminan</h6>
             </div>
-            <div class="card-body p-4 pt-0">
+            <div class="card-body p-4">
                 <div class="p-3 bg-light rounded-3 mb-3 d-flex justify-content-between align-items-center">
                     <div>
                         <small class="text-muted d-block">Jenis Aset</small>
@@ -213,8 +231,8 @@
 
     <!-- TABEL CICILAN -->
     <div class="col-md-8">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
-            <div class="card-header bg-white py-4 px-4 border-bottom-0 d-flex justify-content-between align-items-center">
+        <div class="card detail-card h-100">
+            <div class="card-header-custom">
                 <h5 class="fw-bold mb-0 text-dark">Jadwal Cicilan</h5>
                 @if($loan->status == 'paid')
                     <span class="badge bg-success px-3 py-2 rounded-pill"><i class="fas fa-check-double me-1"></i> LUNAS TOTAL</span>
@@ -223,7 +241,7 @@
                 @endif
             </div>
             <div class="card-body px-4 pt-0 pb-4">
-                <div class="table-responsive">
+                <div class="table-responsive mt-3">
                     <table class="table table-hover align-middle w-100" id="disbursementInstallmentTable">
                         <thead class="bg-light text-muted small text-uppercase">
                             <tr>
@@ -258,7 +276,9 @@
                                 </td>
                                 <td class="text-center">
                                     @if($ins->status == 'waiting')
-                                        <span class="badge bg-info text-white rounded-pill px-3">Menunggu Verifikasi</span>
+                                        <span class="badge bg-info text-white rounded-pill px-3">Verifikasi</span>
+                                    @elseif($ins->status == 'failed')
+                                        <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-3">Ditolak</span>
                                     @elseif($ins->status == 'paid')
                                         <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">Lunas</span>
                                     @elseif($ins->status == 'late')
@@ -270,39 +290,53 @@
                                 <td class="text-end pe-3">
                                     @if($ins->status == 'waiting')
                                         <!-- Tombol Lihat Bukti & Verifikasi -->
-                                        <button class="btn btn-sm btn-primary rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#verifyModal{{ $ins->id }}">
-                                            <i class="fas fa-search me-1"></i> Cek Bukti
+                                        <button class="btn btn-sm btn-primary rounded-pill px-3 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#verifyModal{{ $ins->id }}">
+                                            <i class="fas fa-search me-1"></i> Cek
                                         </button>
 
-                                        <!-- Modal Verifikasi -->
-                                        <div class="modal fade" id="verifyModal{{ $ins->id }}" tabindex="-1" aria-hidden="true">
+                                        <!-- Modal Verifikasi (FIXED: Hapus tabindex agar SWAL input bisa fokus) -->
+                                        <div class="modal fade" id="verifyModal{{ $ins->id }}" aria-hidden="true">
                                             <div class="modal-dialog modal-dialog-centered">
                                                 <div class="modal-content border-0 shadow rounded-4">
-                                                    <div class="modal-header border-bottom-0">
-                                                        <h6 class="fw-bold text-dark">Verifikasi Pembayaran Bulan {{ $ins->installment_number }}</h6>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    <div class="modal-header border-bottom-0 bg-primary text-white rounded-top-4">
+                                                        <h6 class="fw-bold mb-0">Verifikasi Pembayaran #{{ $ins->installment_number }}</h6>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                                     </div>
-                                                    <div class="modal-body text-center">
+                                                    <div class="modal-body text-center p-4">
                                                         @if($ins->proof_path)
-                                                            <div class="border rounded bg-light p-1 mb-3">
-                                                                <img src="{{ asset('storage/' . $ins->proof_path) }}" class="img-fluid rounded" style="max-height: 400px; object-fit: contain;">
+                                                            <div class="border rounded bg-light p-2 mb-3">
+                                                                <img src="{{ asset('storage/' . $ins->proof_path) }}" class="img-fluid rounded" style="max-height: 350px; object-fit: contain;">
                                                             </div>
-                                                            <a href="{{ asset('storage/' . $ins->proof_path) }}" target="_blank" class="btn btn-sm btn-light border mb-2">Lihat Ukuran Asli</a>
+                                                            <a href="{{ asset('storage/' . $ins->proof_path) }}" target="_blank" class="btn btn-sm btn-light border mb-2">
+                                                                <i class="fas fa-expand me-1"></i> Lihat Ukuran Asli
+                                                            </a>
                                                         @else
-                                                            <div class="alert alert-warning">Tidak ada bukti foto.</div>
+                                                            <div class="alert alert-warning">Tidak ada bukti foto yang diunggah.</div>
                                                         @endif
 
-                                                        <p class="small text-muted mt-2">
-                                                            User mengklaim bayar pada: <strong class="text-dark">{{ $ins->paid_at ? $ins->paid_at->format('d M Y') : '-' }}</strong>
-                                                        </p>
+                                                        <div class="mt-3 text-start bg-light p-3 rounded-3">
+                                                            <div class="d-flex justify-content-between mb-1">
+                                                                <span class="text-muted small">Tanggal Bayar User:</span>
+                                                                <strong>{{ $ins->paid_at ? $ins->paid_at->format('d M Y') : '-' }}</strong>
+                                                            </div>
+                                                            <div class="d-flex justify-content-between">
+                                                                <span class="text-muted small">Nominal:</span>
+                                                                <strong class="text-success">Rp {{ number_format($ins->amount + $ins->tazir_amount, 0, ',', '.') }}</strong>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div class="modal-footer justify-content-center border-top-0 pb-4 pt-0">
-                                                        <form action="{{ route('admin.disbursement.verify', $ins->id) }}" method="POST" class="d-flex gap-2 w-100 px-3">
+                                                    <div class="modal-footer justify-content-center border-top-0 pb-4 pt-0 px-4">
+                                                        <form action="{{ route('admin.disbursement.verify', $ins->id) }}" method="POST" class="w-100 d-flex gap-2" id="verifyForm{{ $ins->id }}">
                                                             @csrf
-                                                            <button type="submit" name="action" value="reject" class="btn btn-outline-danger rounded-pill fw-bold flex-fill py-2">
+                                                            <!-- Hidden Input Reason -->
+                                                            <input type="hidden" name="reason" id="rejectReason{{ $ins->id }}">
+                                                            <!-- Hidden Input Action -->
+                                                            <input type="hidden" name="action" id="verifyAction{{ $ins->id }}">
+
+                                                            <button type="button" class="btn btn-outline-danger rounded-pill fw-bold flex-fill py-2 btn-reject-payment" data-id="{{ $ins->id }}">
                                                                 <i class="fas fa-times me-1"></i> Tolak
                                                             </button>
-                                                            <button type="submit" name="action" value="approve" class="btn btn-success rounded-pill fw-bold flex-fill py-2">
+                                                            <button type="button" class="btn btn-success rounded-pill fw-bold flex-fill py-2 btn-approve-payment" data-id="{{ $ins->id }}">
                                                                 <i class="fas fa-check me-1"></i> Terima & Lunas
                                                             </button>
                                                         </form>
@@ -310,6 +344,8 @@
                                                 </div>
                                             </div>
                                         </div>
+                                    @elseif($ins->status == 'failed')
+                                        <button class="btn btn-sm btn-link text-danger p-0" onclick="Swal.fire('Alasan Penolakan', '{{ $ins->rejection_reason }}', 'error')">Info</button>
                                     @elseif($ins->status == 'paid')
                                          <span class="text-success small fw-bold"><i class="fas fa-check-double"></i> Verified</span>
                                     @else
@@ -325,4 +361,86 @@
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    $(document).ready(function() {
+        $('#disbursementInstallmentTable').DataTable({
+            language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/id.json' },
+            searching: false,
+            paging: true,
+            pageLength: 6,
+            lengthChange: false,
+            info: false,
+            ordering: false
+        });
+
+        // HANDLER APPROVE PAYMENT
+        $('.btn-approve-payment').click(function(e) {
+            e.preventDefault();
+            const id = $(this).data('id');
+            const form = document.getElementById('verifyForm' + id);
+            const actionInput = document.getElementById('verifyAction' + id);
+
+            Swal.fire({
+                title: 'Terima Pembayaran?',
+                text: "Status cicilan akan diubah menjadi Lunas.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#198754',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Ya, Terima'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    actionInput.value = 'approve';
+                    Swal.fire({title: 'Memproses...', didOpen: () => Swal.showLoading()});
+                    form.submit();
+                }
+            });
+        });
+
+        // HANDLER REJECT PAYMENT
+        $('.btn-reject-payment').click(function(e) {
+            e.preventDefault();
+            const id = $(this).data('id');
+            const form = document.getElementById('verifyForm' + id);
+            const reasonInput = document.getElementById('rejectReason' + id);
+            const actionInput = document.getElementById('verifyAction' + id);
+
+            // Hide the Bootstrap modal first to avoid focus conflict
+            $('#verifyModal' + id).modal('hide');
+
+            Swal.fire({
+                title: 'Tolak Pembayaran',
+                text: "Berikan alasan penolakan:",
+                input: 'text',
+                inputPlaceholder: 'Contoh: Foto buram, nominal tidak sesuai...',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Tolak',
+                inputValidator: (value) => {
+                    if (!value) return 'Wajib mengisi alasan penolakan!'
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    reasonInput.value = result.value;
+                    actionInput.value = 'reject';
+                    Swal.fire({title: 'Menolak...', didOpen: () => Swal.showLoading()});
+                    form.submit();
+                } else {
+                    // Show modal again if cancelled
+                    $('#verifyModal' + id).modal('show');
+                }
+            });
+        });
+    });
+</script>
+@endpush
 @endsection

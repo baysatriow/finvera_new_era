@@ -11,7 +11,7 @@ class AdminPaymentController extends Controller
 {
     /**
      * ============================================================
-     * LANDING PAGE — DAFTAR PEMBAYARAN MENUNGGU VERIFIKASI
+     * INDEX — DAFTAR PEMBAYARAN MENUNGGU VERIFIKASI
      * ============================================================
      */
     public function index()
@@ -26,7 +26,7 @@ class AdminPaymentController extends Controller
 
     /**
      * ============================================================
-     * DETAIL PAGE — DETAIL PEMBAYARAN CICILAN
+     * SHOW — DETAIL PEMBAYARAN
      * ============================================================
      */
     public function show($id)
@@ -34,7 +34,7 @@ class AdminPaymentController extends Controller
         $payment = Installment::with(['loan.user', 'loan.application'])
             ->findOrFail($id);
 
-        // Validasi status (keamanan tambahan)
+        // Optional security: hanya status waiting
         if ($payment->status !== 'waiting') {
             return redirect()
                 ->route('admin.payments.index')
@@ -46,7 +46,7 @@ class AdminPaymentController extends Controller
 
     /**
      * ============================================================
-     * APPROVE PAYMENT — SETUJUI PEMBAYARAN CICILAN
+     * APPROVE — SETUJUI PEMBAYARAN
      * ============================================================
      */
     public function approve($id)
@@ -54,7 +54,6 @@ class AdminPaymentController extends Controller
         $installment = Installment::with('loan.user')
             ->findOrFail($id);
 
-        // Cegah double processing
         if ($installment->status !== 'waiting') {
             return back()->with('error', 'Data sudah diproses sebelumnya.');
         }
@@ -63,12 +62,14 @@ class AdminPaymentController extends Controller
 
             /**
              * --------------------------------------------------------
-             * 1. UPDATE STATUS CICILAN
+             * 1. UPDATE DATA CICILAN
              * --------------------------------------------------------
              */
             $installment->update([
-                'status'      => 'paid',
-                'total_paid'  => $installment->amount + $installment->tazir_amount,
+                'status'             => 'paid',
+                'total_paid'         => $installment->amount + $installment->tazir_amount,
+                'rejection_reason'   => null,
+                // paid_at sudah diisi saat user upload
             ]);
 
             /**
@@ -79,12 +80,12 @@ class AdminPaymentController extends Controller
             $loan = $installment->loan;
             $loan->remaining_balance -= $installment->amount;
 
-            // Cek pelunasan
+            // Cek lunas total
             if ($loan->remaining_balance <= 100) {
                 $loan->remaining_balance = 0;
                 $loan->status = 'paid';
 
-                // Notifikasi pinjaman lunas
+                // Notifikasi lunas
                 $loan->user->notify(new SystemNotification([
                     'title'   => 'Pinjaman Lunas!',
                     'message' => 'Selamat! Seluruh kewajiban pinjaman Anda telah lunas.',
@@ -97,12 +98,12 @@ class AdminPaymentController extends Controller
 
             /**
              * --------------------------------------------------------
-             * 3. NOTIFIKASI PEMBAYARAN BERHASIL
+             * 3. NOTIFIKASI PEMBAYARAN DITERIMA
              * --------------------------------------------------------
              */
             $loan->user->notify(new SystemNotification([
                 'title'   => 'Pembayaran Diterima',
-                'message' => 'Pembayaran cicilan bulan ke-' . $installment->installment_number . ' telah diverifikasi.',
+                'message' => 'Pembayaran cicilan bulan ke-' . $installment->installment_number . ' telah diverifikasi dan diterima.',
                 'type'    => 'success',
                 'url'     => route('installments.index'),
             ]));
@@ -115,7 +116,7 @@ class AdminPaymentController extends Controller
 
     /**
      * ============================================================
-     * REJECT PAYMENT — TOLAK PEMBAYARAN CICILAN
+     * REJECT — TOLAK PEMBAYARAN
      * ============================================================
      */
     public function reject(Request $request, $id)
@@ -124,18 +125,18 @@ class AdminPaymentController extends Controller
             ->findOrFail($id);
 
         $request->validate([
-            'reason' => 'required|string',
+            'reason' => 'required|string|max:255',
         ]);
 
         /**
          * --------------------------------------------------------
-         * RESET DATA PEMBAYARAN
+         * UPDATE STATUS GAGAL
          * --------------------------------------------------------
+         * Proof path TIDAK dihapus agar user bisa melihat bukti
          */
         $installment->update([
-            'status'     => 'pending',
-            'proof_path'=> null,
-            'paid_at'   => null,
+            'status'            => 'failed',
+            'rejection_reason'  => $request->reason,
         ]);
 
         /**
@@ -144,12 +145,11 @@ class AdminPaymentController extends Controller
          * --------------------------------------------------------
          */
         $installment->loan->user->notify(new SystemNotification([
-            'title'   => 'Bukti Pembayaran Ditolak',
-            'message' => 'Bukti pembayaran cicilan ke-' .
-                $installment->installment_number .
-                ' ditolak. Alasan: ' . $request->reason,
+            'title'   => 'Pembayaran Ditolak',
+            'message' => 'Bukti pembayaran cicilan ke-' . $installment->installment_number .
+                         ' ditolak. Alasan: ' . $request->reason,
             'type'    => 'danger',
-            'url'     => route('installments.pay', $installment->id),
+            'url'     => route('installments.index'),
         ]));
 
         return redirect()

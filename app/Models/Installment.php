@@ -22,6 +22,7 @@ class Installment extends Model
         'total_paid',
         'status',
         'proof_path',
+        'rejection_reason',
         'paid_at',
     ];
 
