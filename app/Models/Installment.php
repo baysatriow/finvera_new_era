@@ -24,6 +24,7 @@ class Installment extends Model
         'proof_path',
         'rejection_reason',
         'paid_at',
+        'last_reminder_day',
     ];
 
     /**

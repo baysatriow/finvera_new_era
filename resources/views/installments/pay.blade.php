@@ -158,7 +158,16 @@
                 <i class="fas fa-wallet position-absolute text-white" style="opacity: 0.1; font-size: 8rem; right: -20px; bottom: -20px;"></i>
                 <h6 class="text-white-50 text-uppercase fw-bold small mb-2 ls-1">Total Tagihan Bulan Ke-{{ $installment->installment_number }}</h6>
                 <h1 class="display-4 fw-bold text-white mb-2">Rp {{ number_format($installment->amount + $installment->tazir_amount, 0, ',', '.') }}</h1>
-                <div class="badge bg-white text-danger px-3 py-2 rounded-pill mt-2 fw-bold">
+                
+                @if($installment->tazir_amount > 0)
+                    <div class="d-inline-block bg-white bg-opacity-10 rounded-pill px-3 py-1 mb-2">
+                        <small class="text-warning fw-bold">
+                            (Pokok: Rp {{ number_format($installment->amount, 0, ',', '.') }} + Ta'zir: Rp {{ number_format($installment->tazir_amount, 0, ',', '.') }})
+                        </small>
+                    </div>
+                @endif
+
+                <div class="badge bg-white text-danger px-3 py-2 rounded-pill mt-2 fw-bold d-block mx-auto" style="width: fit-content;">
                     <i class="fas fa-clock me-1"></i> Jatuh Tempo: {{ $installment->due_date->format('d F Y') }}
                 </div>
             </div>

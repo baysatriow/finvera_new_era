@@ -72,10 +72,12 @@
                         <span class="text-muted">Pokok</span>
                         <span>Rp {{ number_format($payment->amount, 0, ',', '.') }}</span>
                     </li>
+                    @if($payment->tazir_amount > 0)
                     <li class="list-group-item px-0 d-flex justify-content-between bg-white">
                         <span class="text-muted">Denda (Ta'zir)</span>
                         <span class="text-danger">Rp {{ number_format($payment->tazir_amount, 0, ',', '.') }}</span>
                     </li>
+                    @endif
                 </ul>
             </div>
         </div>

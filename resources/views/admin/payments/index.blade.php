@@ -109,7 +109,9 @@
                         <td>
                             <div class="fw-bold text-success">Rp {{ number_format($pay->amount + $pay->tazir_amount, 0, ',', '.') }}</div>
                             @if($pay->tazir_amount > 0)
-                                <small class="text-danger" style="font-size: 0.65rem;">(+Denda)</small>
+                                <div class="text-danger fw-bold" style="font-size: 0.65rem;">
+                                    (Pokok: {{ number_format($pay->amount, 0, ',', '.') }} + Denda: {{ number_format($pay->tazir_amount, 0, ',', '.') }})
+                                </div>
                             @endif
                         </td>
                         <td>
